@@ -38,10 +38,10 @@ class BasicSIR:
         else:
             return sol[-1]
 
-def generate_epidemic_stats(model, stat='AR10'):
-    if stat == 'AR10':
-        s, i, r = model.solve_system(10)
-        return r/(s + i + r)
+    def generate_epidemic_stats(self, stat='AR10'):
+        if stat == 'AR10':
+            s, i, r = self.solve_system(10)
+            return r/(s + i + r)
 
 
 
@@ -52,4 +52,4 @@ if __name__ == "__main__":
     plt.plot(tvals, solution)
     plt.show()
 
-    print(generate_epidemic_stats(ode, stat='AR10'))
+    print(ode.generate_epidemic_stats(stat='AR10'))
