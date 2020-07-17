@@ -4,7 +4,21 @@ import matplotlib.pyplot as plt
 
 
 class BasicSIR:
+    """
+    A class that defines the standard SIR ODE system.
+    s' = -beta*s*i
+    i' = beta*s*i - gamma*i
+    r' = gamma*i
+    """
+
+
     def __init__(self, beta, gamma, initial_condition):
+        """
+        :param beta: transmission rate, float > 0
+        :param gamma: recovery rate, float > 0
+        :param initial_condition: a list of length three, with the initial
+        number of [susceptible, infected, recovered].
+        """
         self.beta = beta
         self.gamma = gamma
         self.initial_condition = initial_condition
