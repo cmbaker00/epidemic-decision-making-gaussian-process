@@ -1,5 +1,7 @@
 import models.epi_models_basic as epi
 import random
+import scipy.stats as stats
+
 
 class Emulator:
     def __init__(self, model, parameters_range, name):
@@ -13,9 +15,12 @@ class Emulator:
             type = attribute['type']
             if type == 'point':
                 value = attribute['value']
-            if type == 'uniform':
+            elif type == 'uniform':
                 value_min, value_max = attribute['value']
                 value = random.uniform(value_min, value_max)
+            else:
+                raise ValueError("Parameter input type {} is not valid"
+                                 .format(type))
             parameters[key] = value
         return parameters
 
