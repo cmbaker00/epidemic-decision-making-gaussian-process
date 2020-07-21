@@ -32,8 +32,9 @@ class Emulator:
                 value = np_rand.gamma(shape=k, scale=theta)
             elif distribution_type == 'normal':
                 value_mean, value_var = attribute['value']
+                value_std = np.sqrt(value_var)
                 value = np_rand.normal(loc=value_mean,
-                                       scale=np.sqrt(value_var))
+                                       scale=value_std)
             else:
                 raise ValueError("Parameter input type {} is not valid"
                                  .format(distribution_type))
