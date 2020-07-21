@@ -12,12 +12,12 @@ class Emulator:
         self.model = model
         self.parameters_range = parameters_range
         self.name = name
-        # kernel = ConstantKernel(.10, (1e-3, 1e3))\
-        #          * RBF(10, (1e-5, 1e5))
-        kernel = RBF()
+        kernel = ConstantKernel(.10, (1e-3, 1e3))\
+                 * RBF(.5, (1e-5, 1e5))
+        # kernel = RBF()
         kernel = 1.0 * RBF(length_scale=.35,
                            length_scale_bounds=(1e-1, 10.0))
-        # kernel = 1.0 * RationalQuadratic(length_scale=10, alpha=1)
+        # kernel = 1.0 * RationalQuadratic(length_scale=.5, alpha=.1)
         self.gp = GaussianProcessRegressor(kernel=kernel)
 
 
@@ -70,8 +70,8 @@ class Emulator:
         plt.figure()
         plt.plot(x, y_pred, 'b-', label='Prediction')
         plt.fill(np.concatenate([x, x[::-1]]),
-                 np.concatenate([y_pred - 1.9600 * y_std,
-                                 (y_pred + 1.9600 * y_std)[::-1]]),
+                 np.concatenate([y_pred - 3 * y_std,
+                                 (y_pred + 3 * y_std)[::-1]]),
                  alpha=.5, fc='b', ec='None', label='95% confidence interval')
         if show_plot:
             plt.show()
@@ -92,10 +92,10 @@ if __name__ == "__main__":
     #     print(params)
     #     emulator_test.run_model(params)
     x_data_test = np.array([1,1.5,2,3,4,5])
-    y_data_test = np.array([0,4  ,5,0,3,2])
+    y_data_test = np.array([0,4  ,5,-2,3,2])
     em = Emulator(None, None, None)
     em.fit_gp(x_data_test, y_data_test)
-    xv = np.arange(1, 5, .01)
+    xv = np.arange(-1, 7, .01)
     yv, ystd = em.predict_gp(xv)
     em.plot_1d(xv, yv, ystd)
     print(em.gp.get_params())
