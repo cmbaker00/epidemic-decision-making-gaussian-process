@@ -46,7 +46,8 @@ class BasicSIR:
 
 def run_sir_model(params, stat='AR10'):
     model = BasicSIR(**params)
-    return model.generate_epidemic_stats(stat=stat)
+    res = model.generate_epidemic_stats(stat=stat)
+    return res
 
 
 if __name__ == "__main__":
