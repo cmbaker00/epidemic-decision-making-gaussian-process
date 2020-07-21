@@ -2,6 +2,7 @@ import models.epi_models_basic as epi
 import random
 import scipy.stats as stats
 import numpy.random as np_rand
+import numpy as np
 
 
 class Emulator:
@@ -13,13 +14,13 @@ class Emulator:
     def gen_parameters(self):
         parameters = {}
         for key, attribute in self.parameters_range.items():
-            type = attribute['type']
-            if type == 'point':
+            distribution_type = attribute['type']
+            if distribution_type == 'point':
                 value = attribute['value']
-            elif type == 'uniform':
+            elif distribution_type == 'uniform':
                 value_min, value_max = attribute['value']
                 value = random.uniform(value_min, value_max)
-            elif type == 'gamma':
+            elif distribution_type == 'gamma':
                 # k shape, theta scale
                 # mean = k*theta
                 # var = k theta**2
@@ -29,9 +30,13 @@ class Emulator:
                 theta = value_var/value_mean
                 k = value_mean/theta
                 value = np_rand.gamma(shape=k, scale=theta)
+            elif distribution_type == 'normal':
+                value_mean, value_var = attribute['value']
+                value = np_rand.normal(loc=value_mean,
+                                       scale=np.sqrt(value_var))
             else:
                 raise ValueError("Parameter input type {} is not valid"
-                                 .format(type))
+                                 .format(distribution_type))
             parameters[key] = value
         return parameters
 
@@ -43,8 +48,8 @@ if __name__ == "__main__":
     emulator_test = Emulator(
         model=epi.run_sir_model,
         parameters_range={
-            'beta': {'value': [0.005, 0.00001], 'type': 'gamma'},
-            'gamma': {'value': [0, 1], 'type': 'uniform'},
+            'beta': {'value': [0.005, 0.00002], 'type': 'gamma'},
+            'gamma': {'value': [1, .05], 'type': 'normal'},
             'initial_condition': {'value': [999, 1, 0], 'type': 'point'}
                           },
         name='epi_SIR_test'
