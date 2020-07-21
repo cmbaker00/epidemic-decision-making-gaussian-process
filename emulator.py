@@ -3,13 +3,16 @@ import random
 import scipy.stats as stats
 import numpy.random as np_rand
 import numpy as np
-
+from sklearn.gaussian_process import GaussianProcessRegressor
+import matplotlib.pyplot as plt
 
 class Emulator:
     def __init__(self, model, parameters_range, name):
         self.model = model
         self.parameters_range = parameters_range
         self.name = name
+        self.gp = GaussianProcessRegressor()
+
 
     def gen_parameters(self):
         parameters = {}
@@ -43,6 +46,17 @@ class Emulator:
 
     def run_model(self, parameters):
         print(self.model(parameters))
+
+
+    def fit_gp(self, x, y):
+        if len(x.shape) == 1:
+            x = x.reshape(-1, 1)
+        self.gp.fit(x, y)
+
+    def predict_gp(self, x):
+        return self.gp.predict(x)
+
+
 
 
 if __name__ == "__main__":
