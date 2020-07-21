@@ -44,6 +44,10 @@ class BasicSIR:
             return r/(s + i + r)
 
 
+def run_sir_model(params, stat='AR10'):
+    model = BasicSIR(**params)
+    return model.generate_epidemic_stats(stat=stat)
+
 
 if __name__ == "__main__":
     ode = BasicSIR(beta=.005, gamma=.2, initial_condition=[1000, 1, 0])
@@ -53,3 +57,8 @@ if __name__ == "__main__":
     plt.show()
 
     print(ode.generate_epidemic_stats(stat='AR10'))
+
+    sir_params = {'beta': .005,
+                  'gamma': .2,
+                  'initial_condition': [1000, 1, 0]}
+    print(run_sir_model(sir_params))
