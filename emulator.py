@@ -90,7 +90,7 @@ class Emulator:
                 for i in range(entry_list_length):
                     col_names.append(name + '{}'.format(i))
         return col_names, flat_list
-
+#TODO sometimes extra columns are being added, don't know why
     def add_results_to_data_frame(self, parameters, result):
         names, values = self.flatten_values(parameters=parameters)
         data_dict = {name: value for name, value in zip(names, values)}
@@ -111,7 +111,7 @@ class Emulator:
             self.data.to_csv(self.data_file())
         elif self.data is None:
             raise ValueError('There is no data to store')
-
+#todo - need some code to go between the data frame and the GP code
     def fit_gp(self, x, y):
         if len(x.shape) == 1:
             x = x.reshape(-1, 1)
@@ -121,6 +121,12 @@ class Emulator:
         if len(x.shape) == 1:
             x = x.reshape(-1, 1)
         return self.gp.predict(x, return_std=return_std)
+
+    def run_random_simulation_overwrite_data(self, num_simulations=5):
+        for i in range(num_simulations):
+            params = self.gen_parameters()
+            self.run_save_simulation(params)
+        self.save_results()
 
     @staticmethod
     def plot_1d(x, y_pred, y_std, show_plot=True):
@@ -154,6 +160,8 @@ if __name__ == "__main__":
     em.run_save_simulation(params)
     em.save_results()
     print(em.data)
+
+    em.run_random_simulation_overwrite_data()
 
 
     basic_emulation_plot_1d_test = False
