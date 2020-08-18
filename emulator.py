@@ -1,6 +1,7 @@
 import models.epi_models_basic as epi
 import random
 import scipy.stats as stats
+from scipy.optimize import minimize, LinearConstraint
 import numpy.random as np_rand
 import numpy as np
 from sklearn.gaussian_process import GaussianProcessRegressor
@@ -9,6 +10,7 @@ import matplotlib.pyplot as plt
 import os
 import pandas as pd
 import itertools
+from functools import lru_cache
 
 
 class Emulator:
@@ -115,14 +117,30 @@ class Emulator:
             raise ValueError('There is no data to store')
 #todo - need some code to go between the data frame and the GP code
 
-    def set_gp(self, y):
-        dy2 = 0.05
-        kernel2 = RBF(.1, (1e-5, 1e5)) + ConstantKernel()
-        y_for_alpha = np.array([i if i > 0.2 else 0.2 for i in y])
-        alpha_vals = (dy2 / y_for_alpha) ** 2
-        gp2 = GaussianProcessRegressor(kernel=kernel2,
-                                       alpha=.1, random_state=0)
-        self.gp = gp2
+    def optimise_gp(self, x, y):
+        initial_guess = np.array([.5, .5])
+        constraints = LinearConstraint(np.eye(2), 0, 10)
+        min_sol = minimize(lambda z: -self.gp_likelihood(x, y, z[0], z[1]),
+                           initial_guess, constraints=constraints)
+
+    def gp_likelihood(self, x, y, h, alpha):
+        self.set_gp(h=h, alpha=alpha)
+        self.fit_gp(x, y)
+        like_value = self.gp.log_marginal_likelihood_value_
+        # yv, y_std = self.predict_gp(self.generate_test_x_mesh(x))
+        # print(np.mean(y_std))
+        return like_value
+
+    def generate_test_x_mesh(self, x):
+        return np.linspace(min(x), max(x), 100)
+
+    def set_gp(self, h=.3, alpha=1.):
+        kernel = RBF(length_scale=h, length_scale_bounds=(1e-5, 1e5)) + \
+                 RBF(length_scale=h*5, length_scale_bounds=(1e-5, 1e5)) + \
+                 ConstantKernel()
+        gp = GaussianProcessRegressor(kernel=kernel,
+                                      alpha=alpha, random_state=0)
+        self.gp = gp
 
     def fit_gp(self, x, y):
         if len(x.shape) == 1:
@@ -180,13 +198,18 @@ if __name__ == "__main__":
 
     basic_emulation_plot_1d_test = True
     if basic_emulation_plot_1d_test:
-        x_data_test = np.array([1,1, 1.5, 2, 3, 4, 5])
+        x_data_test = np.array([0,1, 1.5, 2, 3, 3.5, 6.5])
         y_data_test = np.array([1,3, 4, 5, -2, 3, 2])
         em = Emulator(None, None, None)
-        em.set_gp(y_data_test)
+        em.set_gp(h=.25, alpha=.05)
         em.fit_gp(x_data_test, y_data_test)
         xv = np.arange(-1, 7, .01)
         yv, ystd = em.predict_gp(xv)
         em.plot_1d(xv, yv, ystd, x_data=x_data_test, y_data=y_data_test)
         print(em.gp.get_params())
-        print(em.gp.log_marginal_likelihood_value_) # todo set alpha and the rbf to maximise likelihood.
+        print(em.gp.log_marginal_likelihood_value_)
+        em.optimise_gp(x_data_test, y_data_test)
+        print(em.gp.log_marginal_likelihood_value_)
+
+        print(em.gp.get_params())
+        # em.plot_1d(xv, yv, ystd, x_data=x_data_test, y_data=y_data_test)
