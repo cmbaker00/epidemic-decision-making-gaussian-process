@@ -19,9 +19,10 @@ class Emulator:
         # kernel = ConstantKernel(.10, (1e-3, 1e3))\
         #          * RBF(.5, (1e-5, 1e5))
         # kernel = RBF()
-        kernel = 1.0 * RBF(length_scale=.35,
-                           length_scale_bounds=(1e-1, 10.0))
+        kernel = 10.0 * RBF(length_scale=.35,
+                            length_scale_bounds=(1e-5, 1e5))
         # kernel = 1.0 * RationalQuadratic(length_scale=.5, alpha=.1)
+        #kernel = None
         self.gp = GaussianProcessRegressor(kernel=kernel)
         self.data = self.load_previous_data()
 
@@ -90,7 +91,7 @@ class Emulator:
                 for i in range(entry_list_length):
                     col_names.append(name + '{}'.format(i))
         return col_names, flat_list
-#TODO sometimes extra columns are being added, don't know why
+
     def add_results_to_data_frame(self, parameters, result):
         names, values = self.flatten_values(parameters=parameters)
         data_dict = {name: value for name, value in zip(names, values)}
@@ -108,7 +109,7 @@ class Emulator:
 
     def save_results(self):
         if type(self.data) is pd.DataFrame:
-            self.data.to_csv(self.data_file())
+            self.data.to_csv(self.data_file(), index=False)
         elif self.data is None:
             raise ValueError('There is no data to store')
 #todo - need some code to go between the data frame and the GP code
@@ -157,11 +158,12 @@ if __name__ == "__main__":
 
     params = em.gen_parameters()
     em.run_save_simulation(params)
+    params = em.gen_parameters()
     em.run_save_simulation(params)
     em.save_results()
     print(em.data)
 
-    em.run_random_simulation_overwrite_data()
+    # em.run_random_simulation_overwrite_data()
 
 
     basic_emulation_plot_1d_test = False
