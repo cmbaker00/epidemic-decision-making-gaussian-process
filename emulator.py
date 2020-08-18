@@ -19,11 +19,12 @@ class Emulator:
         # kernel = ConstantKernel(.10, (1e-3, 1e3))\
         #          * RBF(.5, (1e-5, 1e5))
         # kernel = RBF()
-        kernel = 10.0 * RBF(length_scale=.35,
+        kernel = 1.0 * RBF(length_scale=.35,
                             length_scale_bounds=(1e-5, 1e5))
         # kernel = 1.0 * RationalQuadratic(length_scale=.5, alpha=.1)
         #kernel = None
         self.gp = GaussianProcessRegressor(kernel=kernel)
+
         self.data = self.load_previous_data()
 
     def data_file(self):
@@ -113,6 +114,16 @@ class Emulator:
         elif self.data is None:
             raise ValueError('There is no data to store')
 #todo - need some code to go between the data frame and the GP code
+
+    def set_gp(self, y):
+        dy2 = 0.05
+        kernel2 = RBF(.1, (1e-5, 1e5)) + ConstantKernel()
+        y_for_alpha = np.array([i if i > 0.2 else 0.2 for i in y])
+        alpha_vals = (dy2 / y_for_alpha) ** 2
+        gp2 = GaussianProcessRegressor(kernel=kernel2,
+                                       alpha=.1, random_state=0)
+        self.gp = gp2
+
     def fit_gp(self, x, y):
         if len(x.shape) == 1:
             x = x.reshape(-1, 1)
@@ -130,49 +141,52 @@ class Emulator:
         self.save_results()
 
     @staticmethod
-    def plot_1d(x, y_pred, y_std, show_plot=True):
+    def plot_1d(x, y_pred, y_std, x_data=None, y_data=None, show_plot=True):
         plt.figure()
         plt.plot(x, y_pred, 'b-', label='Prediction')
         plt.fill(np.concatenate([x, x[::-1]]),
                  np.concatenate([y_pred - 3 * y_std,
                                  (y_pred + 3 * y_std)[::-1]]),
                  alpha=.5, fc='b', ec='None', label='95% confidence interval')
+        if x_data is not None and y_data is not None:
+            plt.plot(x_data, y_data, 'o')
         if show_plot:
             plt.show()
 
 
 if __name__ == "__main__":
-    em = Emulator(
-        model=epi.run_sir_model,
-        parameters_range={
-            'beta': {'value': [0.005, 0.00002], 'type': 'gamma'},
-            'gamma': {'value': [1, .05], 'type': 'normal'},
-            'initial_condition': {'value': [999, 1, 0], 'type': 'point'}
-                          },
-        name='epi_SIR_test'
-    )
-    for i in range(1):
-        params = em.gen_parameters()
-        print(params)
-        em.run_model(params)
-
-    params = em.gen_parameters()
-    em.run_save_simulation(params)
-    params = em.gen_parameters()
-    em.run_save_simulation(params)
-    em.save_results()
-    print(em.data)
+    # em = Emulator(
+    #     model=epi.run_sir_model,
+    #     parameters_range={
+    #         'beta': {'value': [0.005, 0.00002], 'type': 'gamma'},
+    #         'gamma': {'value': [1, .05], 'type': 'normal'},
+    #         'initial_condition': {'value': [999, 1, 0], 'type': 'point'}
+    #                       },
+    #     name='epi_SIR_test'
+    # )
+    # for i in range(1):
+    #     params = em.gen_parameters()
+    #     print(params)
+    #     em.run_model(params)
+    #
+    # params = em.gen_parameters()
+    # em.run_save_simulation(params)
+    # params = em.gen_parameters()
+    # em.run_save_simulation(params)
+    # em.save_results()
+    # print(em.data)
 
     # em.run_random_simulation_overwrite_data()
 
-
-    basic_emulation_plot_1d_test = False
+    basic_emulation_plot_1d_test = True
     if basic_emulation_plot_1d_test:
-        x_data_test = np.array([1, 1.5, 2, 3, 4, 5])
-        y_data_test = np.array([0, 4, 5, -2, 3, 2])
+        x_data_test = np.array([1,1, 1.5, 2, 3, 4, 5])
+        y_data_test = np.array([1,3, 4, 5, -2, 3, 2])
         em = Emulator(None, None, None)
+        em.set_gp(y_data_test)
         em.fit_gp(x_data_test, y_data_test)
         xv = np.arange(-1, 7, .01)
         yv, ystd = em.predict_gp(xv)
-        em.plot_1d(xv, yv, ystd)
+        em.plot_1d(xv, yv, ystd, x_data=x_data_test, y_data=y_data_test)
         print(em.gp.get_params())
+        print(em.gp.log_marginal_likelihood_value_) # todo set alpha and the rbf to maximise likelihood.
