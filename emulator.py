@@ -11,6 +11,7 @@ import os
 import pandas as pd
 import itertools
 from functools import lru_cache
+import GPy
 
 
 class Emulator:
@@ -18,16 +19,11 @@ class Emulator:
         self.model = model
         self.parameters_range = parameters_range
         self.name = name
-        # kernel = ConstantKernel(.10, (1e-3, 1e3))\
-        #          * RBF(.5, (1e-5, 1e5))
-        # kernel = RBF()
-        kernel = 1.0 * RBF(length_scale=.35,
-                            length_scale_bounds=(1e-5, 1e5))
-        # kernel = 1.0 * RationalQuadratic(length_scale=.5, alpha=.1)
-        #kernel = None
-        self.gp = GaussianProcessRegressor(kernel=kernel)
-
         self.data = self.load_previous_data()
+
+        self.gp = None
+        self.kernal = None
+
 
     def data_file(self):
         return 'data/{}.csv'.format(self.name)
@@ -117,40 +113,20 @@ class Emulator:
             raise ValueError('There is no data to store')
 #todo - need some code to go between the data frame and the GP code
 
-    def optimise_gp(self, x, y):
-        initial_guess = np.array([.5, .5])
-        constraints = LinearConstraint(np.eye(2), 0, 10)
-        min_sol = minimize(lambda z: -self.gp_likelihood(x, y, z[0], z[1]),
-                           initial_guess, constraints=constraints)
-
-    def gp_likelihood(self, x, y, h, alpha):
-        self.set_gp(h=h, alpha=alpha)
-        self.fit_gp(x, y)
-        like_value = self.gp.log_marginal_likelihood_value_
-        # yv, y_std = self.predict_gp(self.generate_test_x_mesh(x))
-        # print(np.mean(y_std))
-        return like_value
-
-    def generate_test_x_mesh(self, x):
-        return np.linspace(min(x), max(x), 100)
-
     def set_gp(self, h=.3, alpha=1.):
-        kernel = RBF(length_scale=h, length_scale_bounds=(1e-5, 1e5)) + \
-                 RBF(length_scale=h*5, length_scale_bounds=(1e-5, 1e5)) + \
-                 ConstantKernel()
-        gp = GaussianProcessRegressor(kernel=kernel,
-                                      alpha=alpha, random_state=0)
-        self.gp = gp
+        # ker = GPy.kern.Matern52(2,ARD=True) + GPy.kern.White(2)
+        ker = GPy.kern.RBF(input_dim=1)
+        self.kernal = ker
 
     def fit_gp(self, x, y):
-        if len(x.shape) == 1:
-            x = x.reshape(-1, 1)
-        self.gp.fit(x, y)
+        m = GPy.models.GPRegression(x, y, self.kernal)
+        m.optimize()
+        self.gp = m
 
     def predict_gp(self, x, return_std=True):
-        if len(x.shape) == 1:
-            x = x.reshape(-1, 1)
-        return self.gp.predict(x, return_std=return_std)
+        # if len(x.shape) == 1:
+        #     x = x.reshape(-1, 1)
+        return self.gp.predict(x)
 
     def run_random_simulation_overwrite_data(self, num_simulations=5):
         for i in range(num_simulations):
@@ -163,9 +139,9 @@ class Emulator:
         plt.figure()
         plt.plot(x, y_pred, 'b-', label='Prediction')
         plt.fill(np.concatenate([x, x[::-1]]),
-                 np.concatenate([y_pred - 3 * y_std,
-                                 (y_pred + 3 * y_std)[::-1]]),
-                 alpha=.5, fc='b', ec='None', label='95% confidence interval')
+                 np.concatenate([y_pred - y_std,
+                                 (y_pred + y_std)[::-1]]),
+                 alpha=.15, fc='b', ec='None', label='95% confidence interval')
         if x_data is not None and y_data is not None:
             plt.plot(x_data, y_data, 'o')
         if show_plot:
@@ -198,18 +174,28 @@ if __name__ == "__main__":
 
     basic_emulation_plot_1d_test = True
     if basic_emulation_plot_1d_test:
-        x_data_test = np.array([0,1, 1.5, 2, 3, 3.5, 6.5])
-        y_data_test = np.array([1,3, 4, 5, -2, 3, 2])
+
+        X1 = np.random.uniform(-3., 3., (20, 1))
+        X2 = np.random.uniform(8., 15., (20, 1))
+        Y1 = np.sin(X1 - 5) + np.random.randn(20, 1) * .25 + 1
+        Y2 = np.sin(X2) + np.random.randn(20, 1) * 0.05
+
+        X = np.r_[X1, X2]
+        Y = np.r_[Y1, Y2]
+
+        x_data_test = X
+        y_data_test = Y
+
+
+        # x_data_test = np.array([[0,1, 1.5, 2, 3, 3.5, 4.5]]).transpose()
+        # y_data_test = np.array([[1,3, 4, 5, -2, 3, 2]]).transpose()
+
         em = Emulator(None, None, None)
         em.set_gp(h=.25, alpha=.05)
         em.fit_gp(x_data_test, y_data_test)
-        xv = np.arange(-1, 7, .01)
-        yv, ystd = em.predict_gp(xv)
+        xv = np.arange(-10, 17, .01)
+        yv, ystd = em.predict_gp(np.reshape(xv,(-1,1)))
         em.plot_1d(xv, yv, ystd, x_data=x_data_test, y_data=y_data_test)
-        print(em.gp.get_params())
-        print(em.gp.log_marginal_likelihood_value_)
-        em.optimise_gp(x_data_test, y_data_test)
-        print(em.gp.log_marginal_likelihood_value_)
 
-        print(em.gp.get_params())
+
         # em.plot_1d(xv, yv, ystd, x_data=x_data_test, y_data=y_data_test)
