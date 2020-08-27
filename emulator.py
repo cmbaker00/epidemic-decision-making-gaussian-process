@@ -12,7 +12,7 @@ import pandas as pd
 import itertools
 from functools import lru_cache
 import GPy
-
+import time
 
 class Emulator:
     def __init__(self, model, parameters_range, name):
@@ -113,15 +113,24 @@ class Emulator:
             raise ValueError('There is no data to store')
 #todo - need some code to go between the data frame and the GP code
 
-    def set_gp(self, h=.3, alpha=1.):
+    def set_gp(self, dimension=1):
         # ker = GPy.kern.Matern52(2,ARD=True) + GPy.kern.White(2)
-        ker = GPy.kern.RBF(input_dim=1)
+        ker = GPy.kern.RBF(input_dim=dimension) \
+              + GPy.kern.White(input_dim=dimension) \
+            + GPy.kern.Matern52(input_dim=dimension)
+        # ker = GPy.kern.src.spline.Spline(input_dim=1)
         self.kernal = ker
 
     def fit_gp(self, x, y):
+        time1 = time.time()
         m = GPy.models.GPRegression(x, y, self.kernal)
+        time2 = time.time()
         m.optimize()
+        time3 = time.time()
+        print(f"Regression time = {time2-time1}")
+        print(f"Optimisation time = {time3-time2}")
         self.gp = m
+
 
     def predict_gp(self, x, return_std=True):
         # if len(x.shape) == 1:
@@ -149,30 +158,41 @@ class Emulator:
 
 
 if __name__ == "__main__":
-    # em = Emulator(
-    #     model=epi.run_sir_model,
-    #     parameters_range={
-    #         'beta': {'value': [0.005, 0.00002], 'type': 'gamma'},
-    #         'gamma': {'value': [1, .05], 'type': 'normal'},
-    #         'initial_condition': {'value': [999, 1, 0], 'type': 'point'}
-    #                       },
-    #     name='epi_SIR_test'
-    # )
-    # for i in range(1):
-    #     params = em.gen_parameters()
-    #     print(params)
-    #     em.run_model(params)
+    em = Emulator(
+        model=epi.run_sir_model,
+        parameters_range={
+            'beta': {'value': [0.005, 0.00002], 'type': 'gamma'},
+            'gamma': {'value': 1, 'type': 'point'},
+            'initial_condition': {'value': [999, 1, 0], 'type': 'point'}
+                          },
+        name='epi_SIR_test'
+    )
+    for i in range(100):
+        params = em.gen_parameters()
+        print(params)
+        em.run_model(params)
+        em.run_save_simulation(params)
+        em.save_results()
     #
     # params = em.gen_parameters()
     # em.run_save_simulation(params)
     # params = em.gen_parameters()
     # em.run_save_simulation(params)
-    # em.save_results()
+    #
     # print(em.data)
+    em.set_gp(dimension=1)
+    # em.fit_gp(np.array(em.data[['beta','gamma']]), em.data['AR10'])
+    x_data = np.array([em.data['beta']]).transpose()
+    y_data = np.array([em.data['AR10']]).transpose()
+    em.fit_gp(x_data, y_data)
+
+    xv = np.arange(0, 0.015, .0001)
+    yv, ystd = em.predict_gp(np.reshape(xv, (-1, 1)))
+    em.plot_1d(xv, yv, ystd, x_data=x_data, y_data=y_data)
 
     # em.run_random_simulation_overwrite_data()
 
-    basic_emulation_plot_1d_test = True
+    basic_emulation_plot_1d_test = False
     if basic_emulation_plot_1d_test:
 
         X1 = np.random.uniform(-3., 3., (20, 1))
@@ -187,11 +207,14 @@ if __name__ == "__main__":
         y_data_test = Y
 
 
-        # x_data_test = np.array([[0,1, 1.5, 2, 3, 3.5, 4.5]]).transpose()
-        # y_data_test = np.array([[1,3, 4, 5, -2, 3, 2]]).transpose()
+        x_data_test = np.array([[1,2,3,4,5,6,7,8,9,10,18]]).transpose() - 5
+        y_data_test = np.array([[1,2,4,2,3,4,4,5,7,8,1]]).transpose()
+
+        # x_data_test = np.array([[1]]).transpose() - 5
+        # y_data_test = np.array([[1]]).transpose()
 
         em = Emulator(None, None, None)
-        em.set_gp(h=.25, alpha=.05)
+        em.set_gp(dimension=1)
         em.fit_gp(x_data_test, y_data_test)
         xv = np.arange(-10, 17, .01)
         yv, ystd = em.predict_gp(np.reshape(xv,(-1,1)))
