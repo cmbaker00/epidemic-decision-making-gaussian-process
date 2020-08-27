@@ -13,6 +13,7 @@ import itertools
 from functools import lru_cache
 import GPy
 import time
+import pyDOE
 
 class Emulator:
     def __init__(self, model, parameters_range, name):
