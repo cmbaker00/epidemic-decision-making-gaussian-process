@@ -1,19 +1,19 @@
 import models.epi_models_basic as epi
 import random
-import scipy.stats as stats
-from scipy.optimize import minimize, LinearConstraint
 import numpy.random as np_rand
 import numpy as np
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF, ConstantKernel, RationalQuadratic
 import matplotlib.pyplot as plt
 import os
 import pandas as pd
 import itertools
 from functools import lru_cache
-import GPy
+
 import time
 import pyDOE
+
+import gpflow
+import tensorflow as tf
+from gpflow.utilities import print_summary
 
 class Emulator:
     def __init__(self, model, parameters_range, name):
@@ -24,7 +24,7 @@ class Emulator:
 
         self.gp = None
         self.kernal = None
-
+        self.meanf = None
 
     def data_file(self):
         return 'data/{}.csv'.format(self.name)
@@ -115,18 +115,16 @@ class Emulator:
 #todo - need some code to go between the data frame and the GP code
 
     def set_gp(self, dimension=1):
-        # ker = GPy.kern.Matern52(2,ARD=True) + GPy.kern.White(2)
-        ker = GPy.kern.RBF(input_dim=dimension) \
-              + GPy.kern.White(input_dim=dimension) \
-            + GPy.kern.Matern52(input_dim=dimension)
-        # ker = GPy.kern.src.spline.Spline(input_dim=1)
-        self.kernal = ker
+        ker = gpflow.kernels.Matern52()
+        meanf = None#gpflow.mean_functions.Constant(0)
+        self.kernal, self.meanf = ker, meanf
 
     def fit_gp(self, x, y):
         time1 = time.time()
-        m = GPy.models.GPRegression(x, y, self.kernal)
+        m = gpflow.models.GPR(data=(x, y), kernel=self.kernal, mean_function=self.meanf)
+        opt = gpflow.optimizers.Scipy()
         time2 = time.time()
-        m.optimize()
+        opt_logs = opt.minimize(m.training_loss, m.trainable_variables, options=dict(maxiter=100))
         time3 = time.time()
         print(f"Regression time = {time2-time1}")
         print(f"Optimisation time = {time3-time2}")
@@ -136,7 +134,9 @@ class Emulator:
     def predict_gp(self, x, return_std=True):
         # if len(x.shape) == 1:
         #     x = x.reshape(-1, 1)
-        return self.gp.predict(x)
+        vals, vars = self.gp.predict_f(x)
+        std = np.sqrt(vars)
+        return vals, std
 
     def run_random_simulation_overwrite_data(self, num_simulations=5):
         for i in range(num_simulations):
@@ -149,13 +149,14 @@ class Emulator:
         plt.figure()
         plt.plot(x, y_pred, 'b-', label='Prediction')
         plt.fill(np.concatenate([x, x[::-1]]),
-                 np.concatenate([y_pred - y_std,
-                                 (y_pred + y_std)[::-1]]),
+                 np.concatenate([y_pred - 1.96*y_std,
+                                 (y_pred + 1.96*y_std)[::-1]]),
                  alpha=.15, fc='b', ec='None', label='95% confidence interval')
         if x_data is not None and y_data is not None:
             plt.plot(x_data, y_data, 'o')
         if show_plot:
             plt.show()
+
 
 
 if __name__ == "__main__":
@@ -168,7 +169,7 @@ if __name__ == "__main__":
                           },
         name='epi_SIR_test'
     )
-    for i in range(100):
+    for i in range(14):
         params = em.gen_parameters()
         print(params)
         em.run_model(params)
@@ -187,7 +188,7 @@ if __name__ == "__main__":
     y_data = np.array([em.data['AR10']]).transpose()
     em.fit_gp(x_data, y_data)
 
-    xv = np.arange(0, 0.015, .0001)
+    xv = np.arange(min(x_data)*.95, max(x_data)*1.05, .0001)
     yv, ystd = em.predict_gp(np.reshape(xv, (-1, 1)))
     em.plot_1d(xv, yv, ystd, x_data=x_data, y_data=y_data)
 
@@ -215,7 +216,7 @@ if __name__ == "__main__":
         # y_data_test = np.array([[1]]).transpose()
 
         em = Emulator(None, None, None)
-        em.set_gp(dimension=1)
+        em.set_gp()
         em.fit_gp(x_data_test, y_data_test)
         xv = np.arange(-10, 17, .01)
         yv, ystd = em.predict_gp(np.reshape(xv,(-1,1)))
