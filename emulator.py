@@ -15,7 +15,7 @@ import gpflow
 import tensorflow as tf
 from gpflow.utilities import print_summary
 
-class Emulator:
+class DynamicEmulator:
     def __init__(self, model, parameters_range, name):
         self.model = model
         self.parameters_range = parameters_range
@@ -29,6 +29,16 @@ class Emulator:
     def data_file(self):
         return 'data/{}.csv'.format(self.name)
 
+    def delete_existing_data(self):
+        print(f'This will delete the file: {self.data_file()}')
+        x = input('Proceed (Y/N)')
+        if x.lower() == 'y':
+            os.remove(self.data_file())
+            self.load_previous_data()
+            print('Deleted')
+        else:
+            print('Cancelled')
+
     def load_previous_data(self):
         data_file_name = self.data_file()
         file_exists = os.path.isfile(data_file_name)
@@ -37,13 +47,10 @@ class Emulator:
         else:
             print('Data file does is not found: {}'
                   .format(data_file_name))
-            print('Creating new data strucutre')
+            print('Creating new data structure')
             return None
-            # raise FileNotFoundError('Data file not found: {}'.format(
-            #     data_file_name
-            # ))
 
-    def gen_parameters(self):
+    def gen_parameters_from_priors(self):
         parameters = {}
         for key, attribute in self.parameters_range.items():
             distribution_type = attribute['type']
@@ -68,8 +75,7 @@ class Emulator:
                 value = np_rand.normal(loc=value_mean,
                                        scale=value_std)
             else:
-                raise ValueError("Parameter input type {} is not valid"
-                                 .format(distribution_type))
+                raise ValueError(f"Parameter input type {distribution_type} is not valid")
             parameters[key] = value
         return parameters
 
@@ -102,34 +108,27 @@ class Emulator:
         else:
             self.data = self.data.append(df)
 
-    def run_save_simulation(self, parameters):
+    def run_model_add_results_to_data_frame(self, parameters):
         result = self.run_model(parameters)
         self.add_results_to_data_frame(parameters, result)
 
-
-    def save_results(self):
+    def save_data_to_csv(self):
         if type(self.data) is pd.DataFrame:
             self.data.to_csv(self.data_file(), index=False)
         elif self.data is None:
             raise ValueError('There is no data to store')
-#todo - need some code to go between the data frame and the GP code
 
-    def set_gp(self, dimension=1):
+    def set_gp_parameters(self, dimension=1):
         ker = gpflow.kernels.Matern52()
         meanf = None#gpflow.mean_functions.Constant(0)
-        self.kernal, self.meanf = ker, meanf
+        self.kernal = ker
+        self.meanf = meanf
 
     def fit_gp(self, x, y):
-        time1 = time.time()
         m = gpflow.models.GPR(data=(x, y), kernel=self.kernal, mean_function=self.meanf)
         opt = gpflow.optimizers.Scipy()
-        time2 = time.time()
         opt_logs = opt.minimize(m.training_loss, m.trainable_variables, options=dict(maxiter=100))
-        time3 = time.time()
-        print(f"Regression time = {time2-time1}")
-        print(f"Optimisation time = {time3-time2}")
         self.gp = m
-
 
     def predict_gp(self, x, return_std=True):
         # if len(x.shape) == 1:
@@ -138,11 +137,11 @@ class Emulator:
         std = np.sqrt(vars)
         return vals, std
 
-    def run_random_simulation_overwrite_data(self, num_simulations=5):
+    def run_random_simulation_save_data(self, num_simulations=5):
         for i in range(num_simulations):
-            params = self.gen_parameters()
-            self.run_save_simulation(params)
-        self.save_results()
+            params = self.gen_parameters_from_priors()
+            self.run_model_add_results_to_data_frame(params)
+        self.save_data_to_csv()
 
     @staticmethod
     def plot_1d(x, y_pred, y_std, x_data=None, y_data=None, show_plot=True):
@@ -158,9 +157,8 @@ class Emulator:
             plt.show()
 
 
-
 if __name__ == "__main__":
-    em = Emulator(
+    em = DynamicEmulator(
         model=epi.run_sir_model,
         parameters_range={
             'beta': {'value': [0.005, 0.00002], 'type': 'gamma'},
@@ -169,12 +167,12 @@ if __name__ == "__main__":
                           },
         name='epi_SIR_test'
     )
-    for i in range(14):
-        params = em.gen_parameters()
+    for i in range(6):
+        params = em.gen_parameters_from_priors()
         print(params)
         em.run_model(params)
-        em.run_save_simulation(params)
-        em.save_results()
+        em.run_model_add_results_to_data_frame(params)
+        em.save_data_to_csv()
     #
     # params = em.gen_parameters()
     # em.run_save_simulation(params)
@@ -182,7 +180,7 @@ if __name__ == "__main__":
     # em.run_save_simulation(params)
     #
     # print(em.data)
-    em.set_gp(dimension=1)
+    em.set_gp_parameters(dimension=1)
     # em.fit_gp(np.array(em.data[['beta','gamma']]), em.data['AR10'])
     x_data = np.array([em.data['beta']]).transpose()
     y_data = np.array([em.data['AR10']]).transpose()
@@ -215,8 +213,8 @@ if __name__ == "__main__":
         # x_data_test = np.array([[1]]).transpose() - 5
         # y_data_test = np.array([[1]]).transpose()
 
-        em = Emulator(None, None, None)
-        em.set_gp()
+        em = DynamicEmulator(None, None, None)
+        em.set_gp_parameters()
         em.fit_gp(x_data_test, y_data_test)
         xv = np.arange(-10, 17, .01)
         yv, ystd = em.predict_gp(np.reshape(xv,(-1,1)))
