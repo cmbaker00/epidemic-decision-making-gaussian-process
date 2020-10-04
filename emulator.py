@@ -137,6 +137,13 @@ class DynamicEmulator:
         std = np.sqrt(vars)
         return vals, std
 
+    def predict_samples(self, x, num_samples=10):
+        xnew = x.reshape(len(x), 1)
+        get_samples = self.gp.predict_f_samples(xnew,
+                                                num_samples=num_samples)
+        samples = get_samples[:, :, 0].numpy().T
+        return samples
+
     def run_random_simulation_save_data(self, num_simulations=5):
         for i in range(num_simulations):
             params = self.gen_parameters_from_priors()
@@ -190,6 +197,8 @@ if __name__ == "__main__":
     yv, ystd = em.predict_gp(np.reshape(xv, (-1, 1)))
     em.plot_1d(xv, yv, ystd, x_data=x_data, y_data=y_data)
 
+    y_sample = em.predict_samples(xv,num_samples=10)
+    plt.plot(xv, y_sample)
     # em.run_random_simulation_overwrite_data()
 
     basic_emulation_plot_1d_test = False
