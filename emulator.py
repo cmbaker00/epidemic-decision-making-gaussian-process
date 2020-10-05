@@ -156,9 +156,10 @@ class DynamicEmulator:
         self.meanf = meanf
 
     def add_data_to_gp(self, x, y):
-
-        pass
-
+        current_x, current_y = self.gp.data
+        new_x = tf.concat([current_x, tf.convert_to_tensor(x)], axis=0)
+        new_y = tf.concat([current_y, tf.convert_to_tensor(y)], axis=0)
+        self.gp.data = new_x, new_y
 
     def change_gp_data_to(self, x, y):
         if self.gp is None:
@@ -213,7 +214,7 @@ class DynamicEmulator:
             final_set_df = final_set_df.append(best_set)
 
             best_set_x_values = np.array(best_set[training_variables_list])
-            best_set_y_values = best_set['val_predict'][0][0]
+            best_set_y_values = np.array(float(best_set['val_predict'][0][0])).reshape(-1, 1)
             self.add_data_to_gp(best_set_x_values, best_set_y_values)
         return final_set_df
         #todo generate a list of param sets
@@ -266,7 +267,7 @@ if __name__ == "__main__":
     y_data = np.array([em.data['AR10']]).transpose()
     em.change_data_optimise_gp(x_data, y_data)
 
-    em.find_high_value_parameters(num_sets=2, num_candidates=5)
+    candidate_sets = em.find_high_value_parameters(num_sets=2, num_candidates=5)
 
     xv = np.arange(min(x_data) * .95, max(x_data) * 1.05, .0001)
     yv, ystd = em.predict_gp(np.reshape(xv, (-1, 1)))
