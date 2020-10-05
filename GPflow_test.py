@@ -11,8 +11,8 @@ from gpflow.utilities import print_summary
 data = np.genfromtxt("data.csv", delimiter=",")
 X = data[0:2, 0].reshape(-1, 1)
 Y = data[0:2, 1].reshape(-1, 1)
-plt.plot(X,Y,"kx", mew=2)
-plt.show()
+# plt.plot(X,Y,"kx", mew=2)
+# plt.show()
 
 
 k = gpflow.kernels.Matern52() #+ gpflow.kernels.Linear()#
