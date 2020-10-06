@@ -80,6 +80,25 @@ class DynamicEmulator:
             parameters[key] = value
         return parameters
 
+    def get_model_input_parameter_names_and_shape(self):
+        output_dict = {}
+        for param_name, distribution in self.parameters_range.items():
+            value_array = np.array(distribution['value'])
+            dist_type = distribution['type']
+            if dist_type == 'point':
+                if value_array.size == 1:
+                    shape = 1
+                else:
+                    shape = value_array.shape[0]
+            else:
+                if len(value_array.shape) == 1:
+                    shape = 1
+                else:
+                    raise TypeError('Array values for non-point distributions is'
+                                    'not yet implemented in '
+                                    'get_model_input_parameter_names_and_shape')
+            output_dict[param_name] = shape
+        return output_dict
 
     @lru_cache()
     def get_training_variable_names(self):
@@ -125,6 +144,21 @@ class DynamicEmulator:
                     col_names.append(f"{name}{name_repeat}")
         return col_names, flat_list
 
+    def restore_to_dict(self, parameters):
+        param_names_shape = self.get_model_input_parameter_names_and_shape()
+        parameter_dict = {}
+        for param_name, param_shape in param_names_shape.items():
+            if param_shape == 1:
+                parameter_dict[param_name] = parameters[param_name]
+            else:
+                value_list = []
+                for value_index in range(param_shape):
+                    value_list.append(
+                        parameters[f'{param_name}{value_index}']
+                    )
+                parameter_dict[param_name] = value_list
+        return parameter_dict
+
     def add_results_to_saved_data(self, parameters, result):
         self.data = self.add_results_to_df(parameters, result, self.data)
 
@@ -143,7 +177,7 @@ class DynamicEmulator:
         result = self.run_model(parameters)
         self.add_results_to_saved_data(parameters, result)
 
-    def save_data_to_csv(self):
+    def save_current_data_frame_to_csv(self):
         if type(self.data) is pd.DataFrame:
             self.data.to_csv(self.data_file(), index=False)
         elif self.data is None:
@@ -195,7 +229,16 @@ class DynamicEmulator:
         for simulation in range(num_simulations):
             parameter_set = self.gen_parameters_from_priors()
             self.run_model_add_results_to_data_frame(parameter_set)
-        self.save_data_to_csv()
+        self.save_current_data_frame_to_csv()
+
+    def find_and_run_high_value_parameters(self, num_sets=2, num_candidates=5):
+        new_parameter_sets = self.find_high_value_parameters(num_sets=num_sets,
+                                                             num_candidates=num_candidates)
+        for index, param_df in new_parameter_sets.iterrows():
+            param_set_dict = param_df.to_dict()
+            restored_parameters = self.restore_to_dict(param_set_dict)
+            self.run_model_add_results_to_data_frame(restored_parameters)
+        # self.save_data_to_csv()
 
     def find_high_value_parameters(self, num_sets, num_candidates):
         param_set_df = pd.DataFrame()
@@ -207,7 +250,8 @@ class DynamicEmulator:
 
         final_set_df = pd.DataFrame()
         for final_set_number in range(num_sets):
-            value_prediction, std_prediction = self.predict_gp(np.array(param_set_df[training_variables_list]), return_std=True)
+            value_prediction, std_prediction = self.predict_gp(np.array(param_set_df[training_variables_list]),
+                                                               return_std=True)
             param_set_df['stdev_predict'] = std_prediction
             param_set_df['val_predict'] = value_prediction
             best_set = param_set_df[param_set_df['stdev_predict'] == max(param_set_df['stdev_predict'])]
@@ -217,10 +261,6 @@ class DynamicEmulator:
             best_set_y_values = np.array(float(best_set['val_predict'][0][0])).reshape(-1, 1)
             self.add_data_to_gp(best_set_x_values, best_set_y_values)
         return final_set_df
-        #todo generate a list of param sets
-        #find where the highest uncertainty is
-        # add to the data, without reoptimising, repeat to get a list.
-        # think of how to tie this into VOI
 
     @staticmethod
     def plot_1d(x, y_pred, y_std, x_data_plot=None, y_data_plot=None, show_plot=True):
@@ -234,6 +274,15 @@ class DynamicEmulator:
             plt.plot(x_data_plot, y_data_plot, 'o')
         if show_plot:
             plt.show()
+
+    def explore_parameter_space_save_to_csv(self, number_model_runs=1, mode='random', num_candidates=None):
+        if mode == 'random':
+            self.run_random_simulation_save_data(num_simulations=number_model_runs)
+        if mode == 'uncertainty':
+            if num_candidates is None:
+                num_candidates = 100 if number_model_runs < 20 else number_model_runs*5
+            self.find_and_run_high_value_parameters(num_sets=number_model_runs, num_candidates=num_candidates)
+        raise ValueError(f'explore mode "{mode}" is unknown. Options are "random" or "uncertainty"')
 
 
 if __name__ == "__main__":
@@ -251,7 +300,7 @@ if __name__ == "__main__":
         print(params)
         em.run_model(params)
         em.run_model_add_results_to_data_frame(params)
-        em.save_data_to_csv()
+        em.save_current_data_frame_to_csv()
     #
     # params = em.gen_parameters()
     # em.run_save_simulation(params)
@@ -267,6 +316,7 @@ if __name__ == "__main__":
     y_data = np.array([em.data['AR10']]).transpose()
     em.change_data_optimise_gp(x_data, y_data)
 
+    em.find_and_run_high_value_parameters(num_sets=2, num_candidates=5)
     candidate_sets = em.find_high_value_parameters(num_sets=2, num_candidates=5)
 
     xv = np.arange(min(x_data) * .95, max(x_data) * 1.05, .0001)
@@ -287,8 +337,8 @@ if __name__ == "__main__":
         X = np.r_[X1, X2]
         Y = np.r_[Y1, Y2]
 
-        x_data_test = X
-        y_data_test = Y
+        # x_data_test = X
+        # y_data_test = Y
 
         x_data_test = np.array([[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 18]]).transpose() - 5
         y_data_test = np.array([[1, 2, 4, 2, 3, 4, 4, 5, 7, 8, 1]]).transpose()

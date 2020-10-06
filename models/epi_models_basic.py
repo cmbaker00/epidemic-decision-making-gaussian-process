@@ -11,7 +11,6 @@ class BasicSIR:
     r' = gamma*i
     """
 
-
     def __init__(self, beta, gamma, initial_condition):
         """
         :param beta: transmission rate, float > 0
