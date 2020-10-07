@@ -209,7 +209,7 @@ class DynamicEmulator:
             opt_logs = opt.minimize(m.training_loss, m.trainable_variables, options=dict(maxiter=100))
         self.gp = m
 
-    def optimise_gp_using_df_data(self):
+    def optimise_gp_using_df_data(self, num_rows=None):
         training_variables = self.get_training_variable_names()
         training_variables_list = list(training_variables)
         response_variable_name = self.get_response_name()
@@ -219,14 +219,20 @@ class DynamicEmulator:
         self.set_gp_parameters(dimension=dimension)
         x_data = np.array(self.data[training_variables_list])
         y_data = np.array(self.data[response_variable_name])
+        if num_rows is not None:
+            x_data = x_data[0:num_rows, :]
+            y_data = y_data[0:num_rows, :]
         self.change_data_optimise_gp(x_data, y_data)
 
-    def set_gp_data_to_df_data(self):
+    def set_gp_data_to_df_data(self, num_rows=None):
         training_variables = self.get_training_variable_names()
         training_variables_list = list(training_variables)
         response_variable_name = self.get_response_name()
         x_data = np.array(self.data[training_variables_list])
         y_data = np.array(self.data[response_variable_name])
+        if num_rows is not None:
+            x_data = x_data[0:num_rows, :]
+            y_data = y_data[0:num_rows, :]
         self.change_data_optimise_gp(x_data, y_data, optimise_gp=False)
 
 

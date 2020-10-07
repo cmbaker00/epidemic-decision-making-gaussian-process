@@ -8,7 +8,7 @@ import models.epi_models_basic as epi
 create_search_space_plot = True
 
 if create_search_space_plot:
-    rerun_simulations = True
+    rerun_simulations = False
 
     emulator_names = {'epi_SIR_test_random_search_example': 'random',
                       'epi_SIR_test_uncertainty_search_example': 'uncertainty'}
@@ -31,4 +31,17 @@ if create_search_space_plot:
                                                          mode=emulator_names[em_name],
                                                          num_per_batch=1)
 
+#TODO code to loop over different amoutns of data, show GP prediction change.
+    for em_name in emulator_names:
+        em = emulator.DynamicEmulator(
+            model=epi.run_sir_model,
+            parameters_range={
+                'beta': {'value': [0.005, 0.00002], 'type': 'gamma'},
+                'gamma': {'value': 1, 'type': 'point'},
+                'initial_condition': {'value': [999, 1, 0], 'type': 'point'}
+            },
+            name=em_name
+        )
 
+        em.set_gp_parameters(1)
+        em.optimise_gp_using_df_data(num_rows=5)
