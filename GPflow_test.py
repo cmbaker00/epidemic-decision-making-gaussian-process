@@ -9,14 +9,16 @@ from gpflow.utilities import print_summary
 # X = np.array([0,1,2,3,4,5])
 # Y = np.array([5,4,3,0,0,-2])
 data = np.genfromtxt("data.csv", delimiter=",")
-X = data[0:2, 0].reshape(-1, 1)
-Y = data[0:2, 1].reshape(-1, 1)
+X = data[0:10, 0].reshape(-1, 1)
+Y = data[0:10, 1].reshape(-1, 1)
 # plt.plot(X,Y,"kx", mew=2)
 # plt.show()
 
 
 k = gpflow.kernels.Matern52() #+ gpflow.kernels.Linear()#
-meanf = None# gpflow.mean_functions.Constant()# + gpflow.mean_functions.Product(gpflow.mean_functions.Linear(), gpflow.mean_functions.Identity())
+k = gpflow.kernels.SquaredExponential() #+ gpflow.kernels.Linear()#
+meanf = gpflow.mean_functions.Constant()# + gpflow.mean_functions.Product(gpflow.mean_functions.Linear(), gpflow.mean_functions.Identity())
+# meanf = gpflow.mean_functions.Identity()
 m = gpflow.models.GPR(data=(X, Y), kernel=k, mean_function=meanf)
 
 opt = gpflow.optimizers.Scipy()
@@ -25,7 +27,7 @@ opt_logs = opt.minimize(m.training_loss, m.trainable_variables, options=dict(max
 print_summary(m)
 
 ## generate test points for prediction
-xx = np.linspace(-0.1, 3.5, 100).reshape(100, 1)  # test points must be of shape (N, D)
+xx = np.linspace(-5.1, 3.5, 1000).reshape(1000, 1)  # test points must be of shape (N, D)
 
 ## predict mean and variance of latent GP at test points
 mean, var = m.predict_f(xx)

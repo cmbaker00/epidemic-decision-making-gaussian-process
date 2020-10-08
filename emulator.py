@@ -13,8 +13,9 @@ import pyDOE
 
 import gpflow
 import tensorflow as tf
-from gpflow.utilities import print_summary
+from gpflow.utilities import print_summary, set_trainable, to_default_float
 
+import tensorflow_probability as tfp
 
 class DynamicEmulator:
     def __init__(self, model, parameters_range, name):
@@ -184,8 +185,13 @@ class DynamicEmulator:
             raise ValueError('There is no data to store')
 
     def set_gp_parameters(self, dimension=1):
-        ker = gpflow.kernels.Matern52()
-        meanf = None  # gpflow.mean_functions.Constant(0)
+        # ker = gpflow.kernels.Matern52()
+        ker = gpflow.kernels.Matern32()
+        ker = gpflow.kernels.SquaredExponential() + gpflow.kernels.Matern32() + gpflow.kernels.White()
+        # ker = gpflow.kernels.Stationary.
+        # ker.variance.prior = tfp.distributions.Gamma(to_default_float(2), to_default_float(3))
+        meanf = None#gpflow.mean_functions.Constant()
+        # meanf = gpflow.mean_functions.Constant(c=20)
         self.kernal = ker
         self.meanf = meanf
 
