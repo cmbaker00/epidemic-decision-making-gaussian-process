@@ -18,7 +18,7 @@ class BasicSIR:
         :param initial_condition: a list of length three, with the initial
         number of [susceptible, infected, recovered].
         """
-        self.beta = beta
+        self.beta = beta/100
         self.gamma = gamma
         self.initial_condition = initial_condition
 

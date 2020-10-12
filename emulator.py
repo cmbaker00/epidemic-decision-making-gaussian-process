@@ -191,7 +191,7 @@ class DynamicEmulator:
         # ker = gpflow.kernels.Stationary.
         # ker.variance.prior = tfp.distributions.Gamma(to_default_float(2), to_default_float(3))
         meanf = None#gpflow.mean_functions.Constant()
-        # meanf = gpflow.mean_functions.Constant(c=20)
+        meanf = gpflow.mean_functions.Constant()
         self.kernal = ker
         self.meanf = meanf
 

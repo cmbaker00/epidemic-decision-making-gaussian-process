@@ -8,10 +8,11 @@ import models.epi_models_basic as epi
 create_search_space_plot = True
 
 if create_search_space_plot:
-    rerun_simulations = False
+    rerun_simulations = True
 
     emulator_names = {'epi_SIR_test_random_search_example': 'random',
                       'epi_SIR_test_uncertainty_search_example': 'uncertainty'}
+    emulator_names = {'epi_SIR_test_uncertainty_search_example': 'uncertainty'}
 
     # emulator_names = {'epi_SIR_test_random_search_example': 'random'}
 
@@ -20,7 +21,7 @@ if create_search_space_plot:
         em = emulator.DynamicEmulator(
             model=epi.run_sir_model,
             parameters_range={
-                'beta': {'value': [0.005, 0.00002], 'type': 'gamma'},
+                'beta': {'value': [0.5, 0.2], 'type': 'gamma'},
                 'gamma': {'value': 1, 'type': 'point'},
                 'initial_condition': {'value': [999, 1, 0], 'type': 'point'}
             },
@@ -28,19 +29,19 @@ if create_search_space_plot:
         )
         emulators[em_name] = em
     if rerun_simulations:
-        for em_name, emulator in emulators.items():
-            emulator.explore_parameter_space_save_to_csv(number_model_runs=50,
+        for em_name, current_emulator in emulators.items():
+            current_emulator.explore_parameter_space_save_to_csv(number_model_runs=50,
                                                          mode=emulator_names[em_name],
                                                          num_per_batch=1)
 
 #TODO code to loop over different amoutns of data, show GP prediction change.
-    xv = np.arange(0, .05, .0001)
+    xv = np.arange(0, 5, .0001)
 
     for em_name in emulator_names:
         em = emulator.DynamicEmulator(
             model=epi.run_sir_model,
             parameters_range={
-                'beta': {'value': [0.005, 0.00002], 'type': 'gamma'},
+                'beta': {'value': [0.5, 0.002], 'type': 'gamma'},
                 'gamma': {'value': 1, 'type': 'point'},
                 'initial_condition': {'value': [999, 1, 0], 'type': 'point'}
             },
