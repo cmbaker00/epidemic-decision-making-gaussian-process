@@ -57,48 +57,60 @@ class DiseaseDynamics:
 
         # new exposures
         pr_infected = self.beta*num_i/self.total_pop
-        new_exposure = np.array(random(pop.shape) < pr_infected) & np.array(pop == self.state_index('susceptible'))
-        state_updates[new_exposure] = self.state_increment('susceptible', 'exposed')
+        self.draw_and_update_state_transitions(
+            pr_infected, 's', 'e', state_updates)
 
         # exposed to infected
-        new_infected = np.array(random(pop.shape) < self.incubation_pr) & np.array(pop == self.state_index('e'))
-        state_updates[new_infected] = self.state_increment('e', 'i')
+        self.draw_and_update_state_transitions(
+            self.incubation_pr, 'e', 'i', state_updates)
 
         # exposed quarantine to infected quarantine
-        new_infected = np.array(random(pop.shape) < self.incubation_pr) & np.array(pop == self.state_index('eq'))
-        state_updates[new_infected] = self.state_increment('eq', 'iq')
+        self.draw_and_update_state_transitions(
+            self.incubation_pr, 'eq', 'iq', state_updates)
 
         # infected to hospital
-        new_hospital = np.array(random(pop.shape) < self.hosp_rate) & np.array(pop == self.state_index('i'))
-        state_updates[new_hospital] = self.state_increment('i', 'ih')
+        self.draw_and_update_state_transitions(
+            self.hosp_rate, 'i', 'ih', state_updates
+        )
 
         # infected quarantine to hospital
-        new_hospital = np.array(random(pop.shape) < self.hosp_rate) & np.array(pop == self.state_index('iq'))
-        state_updates[new_hospital] = self.state_increment('iq', 'ih')
+        self.draw_and_update_state_transitions(
+            self.hosp_rate, 'iq', 'ih', state_updates
+        )
 
         # infected to recovered
-        new_recovered = np.array(random(pop.shape) < self.gamma) & np.array(pop == self.state_index('i'))
-        state_updates[new_recovered] = self.state_increment('i', 'r')
+        self.draw_and_update_state_transitions(
+            self.gamma, 'i', 'r', state_updates
+        )
 
         # infected quarantine to recovered
-        new_recovered = np.array(random(pop.shape) < self.gamma) & np.array(pop == self.state_index('iq'))
-        state_updates[new_recovered] = self.state_increment('iq', 'r')
+        self.draw_and_update_state_transitions(
+            self.gamma, 'iq', 'r', state_updates
+        )
 
         # infected hospital to recovered
-        new_recovered = np.array(random(pop.shape) < self.gamma/2) & np.array(pop == self.state_index('ih'))
-        state_updates[new_recovered] = self.state_increment('ih', 'r')
+        self.draw_and_update_state_transitions(
+            self.gamma/2, 'ih', 'r', state_updates
+        )
 
         # tested
-        people_tested = np.array(random(pop.shape) < self.test_percentage)
-        exposed_tested = people_tested & np.array(pop == self.state_index('e'))
-        infected_tested = people_tested & np.array(pop == self.state_index('i'))
-        state_updates[exposed_tested] = self.state_increment('e', 'eq')
-        state_updates[infected_tested] = self.state_increment('i', 'iq')
+        self.draw_and_update_state_transitions(
+            self.test_percentage, 'e', 'eq', state_updates
+        )
+        self.draw_and_update_state_transitions(
+            self.test_percentage, 'i', 'iq', state_updates
+        )
 
         pop += state_updates.astype(int)
         self.population_state = pop
 
         self.append_population_state()
+
+    def draw_and_update_state_transitions(self, pr_transition, current_state, new_state, current_state_update):
+        pop = self.population_state
+        transitions = np.array(random(pop.shape) < pr_transition) & np.array(pop == self.state_index(current_state))
+        current_state_update[transitions] = self.state_increment(current_state, new_state)
+        return current_state_update
 
     def calculate_state_totals(self, as_list=False):
         state_totals = [sum(self.population_state == self.state_index(state_name)) for state_name in self.state_names]
@@ -132,8 +144,8 @@ class DiseaseDynamics:
 
 
 if __name__ == "__main__":
-    epi = DiseaseDynamics(pop_size=5000,
-                          init_infected=5,
+    epi = DiseaseDynamics(pop_size=500,
+                          init_infected=50,
                           beta=.1,
                           gamma=.05,
                           incubation_pr=.2,
