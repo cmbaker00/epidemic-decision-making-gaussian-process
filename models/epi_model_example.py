@@ -52,13 +52,13 @@ class DiseaseDynamics:
 
         s_index = self.states_index_dict['susceptible']
 
-        perc_s = sum(pop == self.states_index_dict['susceptible'])/self.total_pop
+        # perc_s = sum(pop == self.states_index_dict['susceptible'])/self.total_pop
         num_i = sum(pop == self.states_index_dict['infected'])
 
         # new exposures
         pr_infected = self.beta*num_i/self.total_pop
         self.draw_and_update_state_transitions(
-            pr_infected, 's', 'e', state_updates)
+            pr_infected, 's', 'e', state_updates, stochastic=True)
 
         # exposed to infected
         self.draw_and_update_state_transitions(
@@ -95,10 +95,10 @@ class DiseaseDynamics:
 
         # tested
         self.draw_and_update_state_transitions(
-            self.test_percentage, 'e', 'eq', state_updates
+            self.test_percentage, 'e', 'eq', state_updates, stochastic=True
         )
         self.draw_and_update_state_transitions(
-            self.test_percentage, 'i', 'iq', state_updates
+            self.test_percentage, 'i', 'iq', state_updates, stochastic=True
         )
 
         pop += state_updates.astype(int)
@@ -106,9 +106,20 @@ class DiseaseDynamics:
 
         self.append_population_state()
 
-    def draw_and_update_state_transitions(self, pr_transition, current_state, new_state, current_state_update):
+    def draw_and_update_state_transitions(self, pr_transition, current_state, new_state, current_state_update, stochastic=True):
         pop = self.population_state
-        transitions = np.array(random(pop.shape) < pr_transition) & np.array(pop == self.state_index(current_state))
+        pop_in_state_flag = pop == self.state_index(current_state)
+        num_in_current_state = sum(pop_in_state_flag)
+        expected_transmissions = pr_transition*num_in_current_state
+        if expected_transmissions < 5 and stochastic:
+            state_transitions = np.array(random(num_in_current_state) < pr_transition)
+        else:
+            deterministic_transmissions = int(np.round(expected_transmissions))
+            state_transitions = np.zeros(num_in_current_state, dtype=bool)
+            state_transitions[0:deterministic_transmissions] = True
+
+        transitions = np.zeros(self.total_pop, dtype=bool)
+        transitions[pop_in_state_flag] = state_transitions
         current_state_update[transitions] = self.state_increment(current_state, new_state)
         return current_state_update
 
@@ -144,7 +155,7 @@ class DiseaseDynamics:
 
 
 if __name__ == "__main__":
-    epi = DiseaseDynamics(pop_size=500,
+    epi = DiseaseDynamics(pop_size=1000,
                           init_infected=50,
                           beta=.1,
                           gamma=.05,
@@ -152,7 +163,8 @@ if __name__ == "__main__":
                           hosp_rate=.01,
                           test_percentage=.008)
 
-    for i in range(400):
+    for i in range(500):
+        print(i)
         epi.run_one_time_step()
 
     print(epi.state_totals)
