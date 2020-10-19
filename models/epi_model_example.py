@@ -109,7 +109,9 @@ class DiseaseDynamics:
     def draw_and_update_state_transitions(self, pr_transition, current_state, new_state, current_state_update, stochastic=True):
         pop = self.population_state
         pop_in_state_flag = pop == self.state_index(current_state)
-        num_in_current_state = sum(pop_in_state_flag)
+        # num_in_current_state = sum(pop_in_state_flag)
+        state_full_name = self.short_to_long_state(current_state) if len(current_state) < 3 else current_state
+        num_in_current_state = self.state_totals[state_full_name][-1]
         expected_transmissions = pr_transition*num_in_current_state
         if expected_transmissions < 5 and stochastic:
             state_transitions = np.array(random(num_in_current_state) < pr_transition)
@@ -153,26 +155,82 @@ class DiseaseDynamics:
                               zip(self.state_short_list, self.states_index_dict.keys())}
         return short_to_long_dict[state_name]
 
+def estimate_max_hopsital_rep(pop_size=1000,
+                              init_infected=25,
+                              beta=.1,
+                              gamma=.05,
+                              incubation_pr=.2,
+                              hosp_rate=.01,
+                              test_percentage=.001,
+                              reps=10):
+    max_hospital = [get_max_hospital_single_simulation(pop_size=pop_size,
+                                init_infected=init_infected,
+                                beta=beta,
+                                gamma=gamma,
+                                incubation_pr=incubation_pr,
+                                hosp_rate=hosp_rate,
+                                test_percentage=test_percentage)
+                    for i in range(reps)]
+    return np.mean(max_hospital)
 
-if __name__ == "__main__":
-    epi = DiseaseDynamics(pop_size=1000,
-                          init_infected=50,
+def get_max_hospital_single_simulation(pop_size=1000,
+                          init_infected=25,
                           beta=.1,
                           gamma=.05,
                           incubation_pr=.2,
                           hosp_rate=.01,
-                          test_percentage=.008)
+                          test_percentage=.001):
 
-    for i in range(500):
-        print(i)
-        epi.run_one_time_step()
+    epi_model = DiseaseDynamics(pop_size=pop_size,
+                                init_infected=init_infected,
+                                beta=beta,
+                                gamma=gamma,
+                                incubation_pr=incubation_pr,
+                                hosp_rate=hosp_rate,
+                                test_percentage=test_percentage)
 
-    print(epi.state_totals)
-    print(epi.calculate_state_totals())
-    plt.plot(epi.state_totals['infected_h'])
-    plt.plot(epi.state_totals['infected'])
-    plt.plot(epi.state_totals['infected_q'])
-    plt.legend(['Hospital active cases',
-                'Mild active cases',
-                'Quarantine active cases'])
-    plt.show()
+    flag_passed_max_infected = False
+    flag_passed_max_hospital = False
+    while flag_passed_max_hospital == False:
+        epi_model.run_one_time_step()
+        infected = np.array(epi_model.state_totals['infected']) + \
+                           np.array(epi_model.state_totals['infected_q']) + \
+                           np.array(epi_model.state_totals['infected_h'])
+        if infected[-1] <= max(infected)/2:
+            flag_passed_max_infected = True
+        if flag_passed_max_infected:
+            hospital = np.array(epi_model.state_totals['infected_h'])
+            if hospital[-1] <= max(hospital)/2:
+                return max(hospital)
+
+
+
+if __name__ == "__main__":
+    make_simple_example_plot = False
+    test_estimate_max_hospital = True
+
+    if test_estimate_max_hospital:
+        print(estimate_max_hopsital_rep(reps=3, test_percentage=0))
+
+    if make_simple_example_plot:
+
+        epi = DiseaseDynamics(pop_size=1000,
+                              init_infected=50,
+                              beta=.1,
+                              gamma=.05,
+                              incubation_pr=.2,
+                              hosp_rate=.01,
+                              test_percentage=.008)
+        for i in range(500):
+            print(i)
+            epi.run_one_time_step()
+
+        print(epi.state_totals)
+        print(epi.calculate_state_totals())
+        plt.plot(epi.state_totals['infected_h'])
+        plt.plot(epi.state_totals['infected'])
+        plt.plot(epi.state_totals['infected_q'])
+        plt.legend(['Hospital active cases',
+                    'Mild active cases',
+                    'Quarantine active cases'])
+        plt.show()

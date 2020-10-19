@@ -357,6 +357,7 @@ class DynamicEmulator:
         raise ValueError(f'explore mode "{mode}" is unknown. Options are "random" or "uncertainty"')
 
 
+
 if __name__ == "__main__":
     em = DynamicEmulator(
         model=epi.run_sir_model,
