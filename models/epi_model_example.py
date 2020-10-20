@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from itertools import count
 from numpy.random import random
 from functools import lru_cache
+import emulator
 
 class DiseaseDynamics:
     def __init__(self, pop_size, init_infected,
@@ -155,6 +156,7 @@ class DiseaseDynamics:
                               zip(self.state_short_list, self.states_index_dict.keys())}
         return short_to_long_dict[state_name]
 
+
 def estimate_max_hopsital_rep(pop_size=1000,
                               init_infected=25,
                               beta=.1,
@@ -163,6 +165,7 @@ def estimate_max_hopsital_rep(pop_size=1000,
                               hosp_rate=.01,
                               test_percentage=.001,
                               reps=10):
+
     max_hospital = [get_max_hospital_single_simulation(pop_size=pop_size,
                                 init_infected=init_infected,
                                 beta=beta,
@@ -203,11 +206,41 @@ def get_max_hospital_single_simulation(pop_size=1000,
             if hospital[-1] <= max(hospital)/2:
                 return max(hospital)
 
+def run_example_seir_model(params, stat='max_hospital'):
+    # return get_max_hospital_single_simulation(**params), stat
+    return estimate_max_hopsital_rep(reps=10, **params), stat
+
+
+def estimate_cost(num_tests, ave_hosp):
+    return np.array([3500*h + 100*t for h, t in zip(num_tests, ave_hosp)])
+
+
+# 7x$500 per bed = $3500 per bed per day
+# https://bmchealthservres.biomedcentral.com/track/pdf/10.1186/s12913-017-2079-5
+# $100 per PCR test
+# https://www.sciencedirect.com/science/article/pii/S0016510720342486#tbl2fnverbar
+
 
 
 if __name__ == "__main__":
     make_simple_example_plot = False
-    test_estimate_max_hospital = True
+    test_estimate_max_hospital = False
+    plot_test_vs_hospital = False
+
+    if plot_test_vs_hospital:
+        test = np.linspace(0, 0.5, 20)
+        icu = []
+        for t in test:
+            print(t)
+            icu.append(estimate_max_hopsital_rep(test_percentage=t,
+                                                 reps=5))
+        icu = np.array(icu)
+        cost = icu*3500 + test*100
+        plt.plot(test, icu)
+        plt.plot(test, cost)
+        plt.show()
+
+
 
     if test_estimate_max_hospital:
         print(estimate_max_hopsital_rep(reps=3, test_percentage=0))

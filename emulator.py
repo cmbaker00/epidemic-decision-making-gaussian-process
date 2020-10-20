@@ -202,6 +202,8 @@ class DynamicEmulator:
         self.gp.data = new_x, new_y
 
     def change_gp_data_to(self, x, y):
+        x = np.array(x, dtype='float64')
+        y = np.array(y, dtype='float64')
         if self.gp is None:
             self.gp = gpflow.models.GPR(data=(x, y), kernel=self.kernal, mean_function=self.meanf)
         else:
@@ -295,7 +297,7 @@ class DynamicEmulator:
             final_set_df = final_set_df.append(best_set)
 
             best_set_x_values = np.array(best_set[training_variables_list])
-            best_set_y_values = np.array(float(best_set['val_predict'][0][0])).reshape(-1, 1)
+            best_set_y_values = np.array(best_set['val_predict'][0][0]).reshape(-1, 1)
             self.add_data_to_gp(best_set_x_values, best_set_y_values)
         self.set_gp_data_to_df_data()
         return final_set_df
