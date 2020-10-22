@@ -255,7 +255,10 @@ class DynamicEmulator:
             return values
 
     def predict_samples(self, x, num_samples=10):
-        xnew = x.reshape(len(x), 1)
+        if min(x.shape) == 1:
+            xnew = x.reshape(len(x), 1)
+        else:
+            xnew = x
         get_samples = self.gp.predict_f_samples(xnew,
                                                 num_samples=num_samples)
         samples = get_samples[:, :, 0].numpy().T
