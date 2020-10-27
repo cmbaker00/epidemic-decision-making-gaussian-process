@@ -107,14 +107,16 @@ class DiseaseDynamics:
 
         self.append_population_state()
 
-    def draw_and_update_state_transitions(self, pr_transition, current_state, new_state, current_state_update, stochastic=True):
+    def draw_and_update_state_transitions(self, pr_transition, current_state, new_state, current_state_update,
+                                          stochastic=False):
+        stochastic = False
         pop = self.population_state
         pop_in_state_flag = pop == self.state_index(current_state)
         # num_in_current_state = sum(pop_in_state_flag)
         state_full_name = self.short_to_long_state(current_state) if len(current_state) < 3 else current_state
         num_in_current_state = self.state_totals[state_full_name][-1]
         expected_transmissions = pr_transition*num_in_current_state
-        if expected_transmissions < 5 and stochastic:
+        if (stochastic and expected_transmissions < 5) or expected_transmissions < 1:
             state_transitions = np.array(random(num_in_current_state) < pr_transition)
         else:
             deterministic_transmissions = int(np.round(expected_transmissions))
@@ -223,7 +225,7 @@ def estimate_cost(num_tests, ave_hosp):
 
 
 if __name__ == "__main__":
-    make_simple_example_plot = False
+    make_simple_example_plot = True
     test_estimate_max_hospital = False
     plot_test_vs_hospital = False
 
@@ -254,7 +256,10 @@ if __name__ == "__main__":
                               incubation_pr=.2,
                               hosp_rate=.01,
                               test_percentage=.008)
-        for i in range(500):
+        for i in range(230):
+            print(i)
+            epi.run_one_time_step()
+        for i in range(100):
             print(i)
             epi.run_one_time_step()
 
