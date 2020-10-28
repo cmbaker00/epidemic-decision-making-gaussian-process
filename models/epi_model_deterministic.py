@@ -93,7 +93,7 @@ def get_max_hospital(pop_size=1000,
                                              expected_time_to_hospital=expected_time_to_hospital,
                                              test_percentage=test_percentage)
     y = epi_model.run_ode([0, 365])
-    return max(y.y[-2])
+    return max(y.y[-2]*pop_size)
 
 
 def get_utility_from_simulation(pop_size=1000,
@@ -137,12 +137,12 @@ if __name__ == "__main__":
 
     if make_simple_example_plot:
         pop_size = 1000
-        init_infected = 25
+        init_infected = 1
         r0 = 2
-        expected_recovery_time = 20
+        expected_recovery_time = 5
         expected_incubation_time = 5
-        expected_time_to_hospital = 10
-        test_percentage = .1
+        expected_time_to_hospital = 15
+        test_percentage = 100
         epi_model = DiseaseDynamicsDeterministic(pop_size=pop_size,
                                                  init_infected=init_infected,
                                                  r0=r0,
@@ -151,7 +151,7 @@ if __name__ == "__main__":
                                                  expected_time_to_hospital=expected_time_to_hospital,
                                                  test_percentage=test_percentage)
         y = epi_model.run_ode([0, 500])
-        plt.plot(y.t, y.y[1:-1].transpose())
+        plt.plot(y.t, y.y[1:-1].transpose()*pop_size)
         plt.legend(['Exposed', 'Exposed quarantine',
                     'Infected', 'Infected quarantine',
                     'Infected hospital'])
