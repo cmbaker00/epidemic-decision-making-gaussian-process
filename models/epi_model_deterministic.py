@@ -22,7 +22,7 @@ class DiseaseDynamicsDeterministic:
         self.gamma = gamma
         self.incubation_pr = incubation_pr
         self.hosp_rate = hosp_rate
-        self.test_probability = test_percentage/100
+        self.test_probability = test_percentage / 100
 
         self.current_time = 0
         self.time_list = [self.current_time]
@@ -39,29 +39,26 @@ class DiseaseDynamicsDeterministic:
         }
 
         self.state_short_list = ('s', 'e',
-                            'eq', 'i',
-                            'iq', 'ih',
-                            'r')
+                                 'eq', 'i',
+                                 'iq', 'ih',
+                                 'r')
 
-        population_state = [0]*self.total_pop
+        population_state = [0] * self.total_pop
         for i in range(self.initial_infected):
             population_state[i] = self.states_index_dict['infected']
         self.population_state = np.array(population_state)
 
-        self.population_initial_condition = np.array([np.sum(self.population_state == i) for i in range(len(states))])/self.total_pop
-
-
-
-
+        self.population_initial_condition = np.array(
+            [np.sum(self.population_state == i) for i in range(len(states))]) / self.total_pop
 
         # self.state_totals = self.calculate_state_totals(as_list = True)
 
     def ode_rhs(self, t, y):
         s, e, eq, i, iq, ih, r = y
 
-        total_infected_for_transmission = i + .25*(iq + ih)
+        total_infected_for_transmission = i + .25 * (iq + ih)
 
-        de_s = -self.beta*total_infected_for_transmission*s
+        de_s = -self.beta * total_infected_for_transmission * s
         de_e = self.beta * total_infected_for_transmission * s \
                - self.test_probability * e - self.incubation_pr * e
         de_eq = self.test_probability * e - self.incubation_pr * eq
@@ -70,9 +67,9 @@ class DiseaseDynamicsDeterministic:
                - self.gamma * i
         de_iq = self.incubation_pr * eq + self.test_probability * i \
                 - self.hosp_rate * iq - self.gamma * iq
-        de_ih = self.hosp_rate*i + self.hosp_rate*iq \
-                - self.gamma*ih/2
-        de_r = self.gamma*(i + iq + ih/2)
+        de_ih = self.hosp_rate * i + self.hosp_rate * iq \
+                - self.gamma * ih / 2
+        de_r = self.gamma * (i + iq + ih / 2)
 
         return de_s, de_e, de_eq, de_i, de_iq, de_ih, de_r
 
@@ -81,14 +78,13 @@ class DiseaseDynamicsDeterministic:
         return sol
 
 
-def get_max_hospital_single_simulation(pop_size=1000,
-                                       init_infected=25,
-                                       r0=2,
-                                       expected_recovery_time=20,
-                                       expected_incubation_time=5,
-                                       expected_time_to_hospital=10,
-                                       test_percentage=.1):
-
+def get_max_hospital(pop_size=1000,
+                     init_infected=25,
+                     r0=2,
+                     expected_recovery_time=20,
+                     expected_incubation_time=5,
+                     expected_time_to_hospital=10,
+                     test_percentage=.1):
     epi_model = DiseaseDynamicsDeterministic(pop_size=pop_size,
                                              init_infected=init_infected,
                                              r0=r0,
@@ -100,29 +96,44 @@ def get_max_hospital_single_simulation(pop_size=1000,
     return max(y.y[-2])
 
 
-def get_utility(pop_size=1000,
-                init_infected=25,
-                r0=2,
-                expected_recovery_time=20,
-                expected_incubation_time=5,
-                expected_time_to_hospital=10,
-                test_percentage=.1):
-    max_hospital = get_max_hospital_single_simulation(pop_size=pop_size,
-                                                      init_infected=init_infected,
-                                                      r0=r0,
-                                                      expected_recovery_time=expected_recovery_time,
-                                                      expected_incubation_time=expected_incubation_time,
-                                                      expected_time_to_hospital=expected_time_to_hospital,
-                                                      test_percentage=test_percentage)
-    return 3500 * max_hospital + 100 * test_percentage
+def get_utility_from_simulation(pop_size=1000,
+                                init_infected=25,
+                                r0=2,
+                                expected_recovery_time=20,
+                                expected_incubation_time=5,
+                                expected_time_to_hospital=10,
+                                test_percentage=.1):
+    max_hospital = get_max_hospital(pop_size=pop_size,
+                                    init_infected=init_infected,
+                                    r0=r0,
+                                    expected_recovery_time=expected_recovery_time,
+                                    expected_incubation_time=expected_incubation_time,
+                                    expected_time_to_hospital=expected_time_to_hospital,
+                                    test_percentage=test_percentage)
+    return calc_utility(max_hospital, pop_size*test_percentage/100)
+
+def calc_utility(hospital, num_tests):
+    number_of_tests = np.array(num_tests)
+    max_hospital = np.array(hospital)
+    if number_of_tests.shape == max_hospital.shape:
+        pass
+    else:
+        if number_of_tests.ndim == 1 and max_hospital.ndim == 1:
+            pass
+        else:
+            if number_of_tests.ndim == 2:
+                number_of_tests = number_of_tests.transpose()
+            if max_hospital.ndim == 2:
+                number_of_tests = number_of_tests.transpose()
+    return np.array(3500 * max_hospital + 100 * number_of_tests)
 
 if __name__ == "__main__":
 
     make_simple_example_plot = True
 
-    print(get_utility(test_percentage=0))
-    print(get_utility(test_percentage=.05))
-    print(get_utility(test_percentage=.1))
+    print(get_utility_from_simulation(test_percentage=0))
+    print(get_utility_from_simulation(test_percentage=.05))
+    print(get_utility_from_simulation(test_percentage=.1))
 
     if make_simple_example_plot:
         pop_size = 1000
@@ -139,9 +150,9 @@ if __name__ == "__main__":
                                                  expected_incubation_time=expected_incubation_time,
                                                  expected_time_to_hospital=expected_time_to_hospital,
                                                  test_percentage=test_percentage)
-        y = epi_model.run_ode([0,500])
-        plt.plot(y.t,y.y[1:-1].transpose())
-        plt.legend(['Exposed','Exposed quarantine',
+        y = epi_model.run_ode([0, 500])
+        plt.plot(y.t, y.y[1:-1].transpose())
+        plt.legend(['Exposed', 'Exposed quarantine',
                     'Infected', 'Infected quarantine',
                     'Infected hospital'])
         plt.show()
