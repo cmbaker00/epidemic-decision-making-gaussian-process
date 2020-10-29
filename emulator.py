@@ -245,16 +245,34 @@ class DynamicEmulator:
 
 
     def predict_gp(self, x, return_std=True):
+        if x.ndim == 1:
+            flag_1d = True
+            x = np.vstack((x, x))
+        else:
+            flag_1d = False
         # if len(x.shape) == 1:
         #     x = x.reshape(-1, 1)
         values, variances = self.gp.predict_f(x)
         std = np.sqrt(variances)
+        if flag_1d:
+            values = values[0]
+            std = std[0]
         if return_std:
             return values, std
         else:
             return values
 
+    def dict_to_data_for_predict(self, data_dict):
+        key_names = self.get_training_variable_names()
+        new_dict = {key: data_dict[key] for key in key_names}
+        return self.flatten_values(new_dict)[1]
+
     def predict_samples(self, x, num_samples=10):
+        if x.ndim == 1:
+            flag_1d = True
+            x = np.vstack((x, x))
+        else:
+            flag_1d = False
         if min(x.shape) == 1:
             xnew = x.reshape(len(x), 1)
         else:
@@ -262,6 +280,8 @@ class DynamicEmulator:
         get_samples = self.gp.predict_f_samples(xnew,
                                                 num_samples=num_samples)
         samples = get_samples[:, :, 0].numpy().T
+        if flag_1d:
+            samples = samples[0]
         return samples
 
     def run_random_simulation_save_data(self, num_simulations=5):

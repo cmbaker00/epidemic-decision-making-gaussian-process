@@ -77,23 +77,24 @@ class DiseaseDynamicsDeterministic:
         sol = solve_ivp(lambda t, y: self.ode_rhs(t, y), timespan, self.population_initial_condition)
         return sol
 
-
-def get_max_hospital(pop_size=1000,
+def get_max_hospital_default(pop_size=1000,
                      init_infected=25,
                      r0=2,
                      expected_recovery_time=20,
                      expected_incubation_time=5,
                      expected_time_to_hospital=10,
-                     test_percentage=.1):
-    epi_model = DiseaseDynamicsDeterministic(pop_size=pop_size,
-                                             init_infected=init_infected,
-                                             r0=r0,
-                                             expected_recovery_time=expected_recovery_time,
-                                             expected_incubation_time=expected_incubation_time,
-                                             expected_time_to_hospital=expected_time_to_hospital,
-                                             test_percentage=test_percentage)
+                             test_percentage=.1):
+    get_max_hospital(pop_size, init_infected,
+                     r0, expected_recovery_time,
+                     expected_incubation_time,
+                     expected_time_to_hospital,
+                     test_percentage)
+
+
+def get_max_hospital(kwargs, stat='max_hospital'):
+    epi_model = DiseaseDynamicsDeterministic(**kwargs)
     y = epi_model.run_ode([0, 365])
-    return max(y.y[-2]*pop_size)
+    return max(y.y[-2]*kwargs['pop_size']), stat
 
 
 def get_utility_from_simulation(pop_size=1000,
