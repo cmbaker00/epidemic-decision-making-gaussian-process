@@ -16,7 +16,7 @@ def define_dict_for_test_options_from_param_dict(input_dict, test_perc_opt=(0, 1
          for key, value in input_dict.items()}
         for current_test in test_perc_opt)
 
-
+#TODO em needs to be an input here!!!!
 def sample_and_est_utility(param_dict, n_samples=1001):
     h_est = em.predict_samples(
         np.array(em.dict_to_data_for_predict(param_dict)), num_samples=n_samples)
@@ -197,3 +197,8 @@ if __name__ == "__main__":
         generate_gp_data_action_certainty_search(params=parameter_range, num_samples=data_samples)
     if generate_test_data:
         generate_gp_test_data(params=parameter_range, num_samples=10000)
+
+    em = create_emulator_object(parameter_range, get_gp_save_names('gp_uncertainty'))
+    data_test = create_emulator_object(parameter_range, get_gp_save_names('test_data'))
+    em.optimise_gp_using_df_data(50)
+    dict(data_test.data.iloc[1]) #NEED A WAY TO TEST THIS PROPERLY
