@@ -62,6 +62,13 @@ def estimate_certainty(option_probabilities):
     return certainty
 
 
+def determine_best_param_set_by_action_certainty(num_param_sets=100, num_gp_draws=1000):
+    param_options = tuple(em.gen_parameters_from_priors() for _ in range(num_param_sets))
+    param_action_probs = tuple(estimate_probability_of_best_action(data, n_samples=num_gp_draws) for data in param_options)
+    param_certainty = tuple(estimate_certainty(p) for p in param_action_probs)
+    best_param_choice = param_options[param_certainty.index(min(param_certainty))]
+    return best_param_choice
+
 if __name__ == "__main__":
     em = emulator.DynamicEmulator(
         model=epi_model_deterministic.get_max_hospital,
@@ -84,31 +91,32 @@ if __name__ == "__main__":
         em.save_current_data_frame_to_csv()
 
     em.optimise_gp_using_df_data()
-    data_test = {'pop_size': 1000, 'init_infected': 25, 'r0': 1.5744237738927043,
-                 'expected_recovery_time': 9.838055272628877,
-                 'expected_incubation_time': 4.1433165448651845,
-                 'expected_time_to_hospital': 11.350750481733268,
-                 'test_percentage': 13.362669656050768}
-    data_input = np.array(em.dict_to_data_for_predict(data_test))
-    em.predict_samples(data_input, 10)
-    hosp_est = np.array(em.predict_gp(data_input)[0])
-    epi_model_deterministic.calc_utility(hospital=hosp_est,
-                                         num_tests=data_test['test_percentage'] * data_test['pop_size'] / 100)
-    define_dict_for_test_options_from_param_dict(data_test)
-    np.array(em.dict_to_data_for_predict(define_dict_for_test_options_from_param_dict(data_test)[0]))
-    epi_model_deterministic.calc_utility(
-        hospital=em.predict_samples(
-            np.array(em.dict_to_data_for_predict(define_dict_for_test_options_from_param_dict(data_test)[0])), 100),
-        num_tests=define_dict_for_test_options_from_param_dict(data_test)[0]['test_percentage'] *
-                  define_dict_for_test_options_from_param_dict(data_test)[0]['pop_size'] / 100)
-
-    action_probs = estimate_probability_of_best_action(data_test)
-    estimate_best_action(data_test)
-    print(estimate_certainty(action_probs))
-    ts = time.time()
-    param_options = tuple(em.gen_parameters_from_priors() for i in range(100))
-    param_action_probs = tuple(estimate_probability_of_best_action(data, n_samples=1000) for data in param_options)
-    param_certainty = tuple(estimate_certainty(p) for p in param_action_probs)
-    best_param_choice = param_options[param_certainty.index(min(param_certainty))]
-    te = time.time()
-    print(te - ts)
+    # data_test = {'pop_size': 1000, 'init_infected': 25, 'r0': 1.5744237738927043,
+    #              'expected_recovery_time': 9.838055272628877,
+    #              'expected_incubation_time': 4.1433165448651845,
+    #              'expected_time_to_hospital': 11.350750481733268,
+    #              'test_percentage': 13.362669656050768}
+    # data_input = np.array(em.dict_to_data_for_predict(data_test))
+    # em.predict_samples(data_input, 10)
+    # hosp_est = np.array(em.predict_gp(data_input)[0])
+    # epi_model_deterministic.calc_utility(hospital=hosp_est,
+    #                                      num_tests=data_test['test_percentage'] * data_test['pop_size'] / 100)
+    # define_dict_for_test_options_from_param_dict(data_test)
+    # np.array(em.dict_to_data_for_predict(define_dict_for_test_options_from_param_dict(data_test)[0]))
+    # epi_model_deterministic.calc_utility(
+    #     hospital=em.predict_samples(
+    #         np.array(em.dict_to_data_for_predict(define_dict_for_test_options_from_param_dict(data_test)[0])), 100),
+    #     num_tests=define_dict_for_test_options_from_param_dict(data_test)[0]['test_percentage'] *
+    #               define_dict_for_test_options_from_param_dict(data_test)[0]['pop_size'] / 100)
+    #
+    # action_probs = estimate_probability_of_best_action(data_test)
+    # estimate_best_action(data_test)
+    # print(estimate_certainty(action_probs))
+    # ts = time.time()
+    # param_options = tuple(em.gen_parameters_from_priors() for i in range(100))
+    # param_action_probs = tuple(estimate_probability_of_best_action(data, n_samples=1000) for data in param_options)
+    # param_certainty = tuple(estimate_certainty(p) for p in param_action_probs)
+    # best_param_choice = param_options[param_certainty.index(min(param_certainty))]
+    # te = time.time()
+    # print(te - ts)
+    print(determine_best_param_set_by_action_certainty())
