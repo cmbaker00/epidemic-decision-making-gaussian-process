@@ -62,24 +62,84 @@ def estimate_certainty(option_probabilities):
     return certainty
 
 
-def determine_best_param_set_by_action_certainty(num_param_sets=100, num_gp_draws=1000):
-    param_options = tuple(em.gen_parameters_from_priors() for _ in range(num_param_sets))
+def determine_best_param_set_by_action_certainty(current_emulator, num_param_sets=100, num_gp_draws=1000):
+    param_options = tuple(current_emulator.gen_parameters_from_priors() for _ in range(num_param_sets))
     param_action_probs = tuple(estimate_probability_of_best_action(data, n_samples=num_gp_draws) for data in param_options)
     param_certainty = tuple(estimate_certainty(p) for p in param_action_probs)
     best_param_choice = param_options[param_certainty.index(min(param_certainty))]
     return best_param_choice
 
-if __name__ == "__main__":
+def create_emulator_object(params, gp_save_name):
     em = emulator.DynamicEmulator(
         model=epi_model_deterministic.get_max_hospital,
-        parameters_range={'pop_size': {'value': 1000, 'type': 'point'},
+        parameters_range=params,
+        name=gp_save_name
+    )
+    return em
+
+def get_gp_save_names(search_type):
+    if search_type == 'random':
+        return 'deterministic_example_random_gp_data'
+    if search_type == 'gp_uncertainty':
+        return 'deterministic_example_uncertainty_gp_data'
+    if search_type == 'gp_action_certainty':
+        return 'deterministic_example_action_certainty_gp_data'
+    if search_type == 'test_data':
+        return 'deterministic_example_test_data'
+    raise NameError(f'Search type "{search_type}" not recognised')
+
+def generate_gp_test_data(params, num_samples):
+    em = create_emulator_object(params, gp_save_name=get_gp_save_names('test_data'))
+    em.delete_existing_data(force_delete=True)
+    for i in range(num_samples):
+        print(i)
+        params = em.gen_parameters_from_priors()
+        em.run_model_add_results_to_data_frame(params)
+        em.save_current_data_frame_to_csv()
+
+
+def generate_gp_data_random_search(params, num_samples):
+    em=create_emulator_object(params, gp_save_name=get_gp_save_names('random'))
+    em.delete_existing_data(force_delete=True)
+    for i in range(num_samples):
+        print(i)
+        params = em.gen_parameters_from_priors()
+        # em.run_model(params)
+        em.run_model_add_results_to_data_frame(params)
+        em.save_current_data_frame_to_csv()
+
+
+def generate_gp_data_uncertainty_search(params, num_samples):
+    em=create_emulator_object(params, gp_save_name=get_gp_save_names('gp_uncertainty'))
+    em.delete_existing_data(force_delete=True)
+    em.explore_parameter_space_save_to_csv(number_model_runs=num_samples, mode='uncertainty')
+
+def generate_gp_data_action_certainty_search(params, num_samples):
+    em=create_emulator_object(params, gp_save_name=get_gp_save_names('gp_action_certainty'))
+    em.delete_existing_data(force_delete=True)
+    em.run_random_simulation_save_data(10)
+    samples_to_run = num_samples - 10
+    if samples_to_run <= 0:
+        raise ValueError(f'Number of samples must be greater than 10.')
+    for i in range(samples_to_run):
+        print(i)
+        best_params = determine_best_param_set_by_action_certainty(em)
+        em.run_model_add_results_to_data_frame(best_params)
+        em.save_current_data_frame_to_csv()
+
+
+if __name__ == "__main__":
+    parameter_range = {'pop_size': {'value': 1000, 'type': 'point'},
                           'init_infected': {'value': 25, 'type': 'point'},
                           'r0': {'value': [1, 3], 'type': 'uniform'},
                           'expected_recovery_time': {'value': [1, 14], 'type': 'uniform'},
                           'expected_incubation_time': {'value': [1, 5], 'type': 'uniform'},
                           'expected_time_to_hospital': {'value': [1, 14], 'type': 'uniform'},
                           'test_percentage': {'value': [0, 20], 'type': 'uniform'}
-                          },
+                          }
+    em = emulator.DynamicEmulator(
+        model=epi_model_deterministic.get_max_hospital,
+        parameters_range=parameter_range,
         name='deterministic_SIR_random_sample'
     )
 
@@ -119,4 +179,21 @@ if __name__ == "__main__":
     # best_param_choice = param_options[param_certainty.index(min(param_certainty))]
     # te = time.time()
     # print(te - ts)
-    print(determine_best_param_set_by_action_certainty())
+
+
+    # print(determine_best_param_set_by_action_certainty())
+    data_samples = 500
+
+    generate_random_data = False
+    generate_uncertain_data = False
+    generate_action_certainty_data = False
+    generate_test_data = False
+
+    if generate_random_data:
+        generate_gp_data_random_search(params=parameter_range, num_samples=data_samples)
+    if generate_uncertain_data:
+        generate_gp_data_uncertainty_search(params=parameter_range, num_samples=data_samples)
+    if generate_action_certainty_data:
+        generate_gp_data_action_certainty_search(params=parameter_range, num_samples=data_samples)
+    if generate_test_data:
+        generate_gp_test_data(params=parameter_range, num_samples=10000)

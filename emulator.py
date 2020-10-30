@@ -31,11 +31,19 @@ class DynamicEmulator:
     def data_file(self):
         return 'data/{}.csv'.format(self.name)
 
-    def delete_existing_data(self):
-        print(f'This will delete the file: {self.data_file()}')
-        x = input('Proceed (Y/N)')
+    def delete_existing_data(self, force_delete=False):
+        if force_delete:
+            x = 'y'
+        else:
+            print(f'This will delete the file: {self.data_file()}')
+            x = input('Proceed (Y/N)')
         if x.lower() == 'y':
-            os.remove(self.data_file())
+            try:
+                os.remove(self.data_file())
+            except FileNotFoundError:
+                pass
+            else:
+                raise
             self.load_previous_data()
             print('Deleted')
         else:
@@ -364,8 +372,8 @@ class DynamicEmulator:
                     raise ValueError("There is an issue when batch is greater than zero (if set to none, it the total number of model runs."
                                      "Sometimes, the batch returns all the same parameter values.")
                 if self.data is None:
-                    print('Running 2 initial simulations')
-                    num_random = 5
+                    print('Running 10 initial simulations')
+                    num_random = 10
                     self.run_random_simulation_save_data(num_simulations=num_random)
                     self.load_previous_data()
                     num_model_runs_current -= num_random
