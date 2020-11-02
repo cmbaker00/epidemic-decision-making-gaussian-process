@@ -43,8 +43,8 @@ class DiseaseDynamicsDeterministic:
                                  'iq', 'ih',
                                  'r')
 
-        population_state = [0] * self.total_pop
-        for i in range(self.initial_infected):
+        population_state = [0] * int(self.total_pop)
+        for i in range(int(self.initial_infected)):
             population_state[i] = self.states_index_dict['infected']
         self.population_state = np.array(population_state)
 
@@ -84,17 +84,26 @@ def get_max_hospital_default(pop_size=1000,
                      expected_incubation_time=5,
                      expected_time_to_hospital=10,
                              test_percentage=.1):
-    get_max_hospital(pop_size, init_infected,
+    return get_max_hospital(dict_input_for_max_hospital(pop_size, init_infected,
                      r0, expected_recovery_time,
                      expected_incubation_time,
                      expected_time_to_hospital,
-                     test_percentage)
+                     test_percentage))[0]
 
 
 def get_max_hospital(kwargs, stat='max_hospital'):
     epi_model = DiseaseDynamicsDeterministic(**kwargs)
     y = epi_model.run_ode([0, 365])
     return max(y.y[-2]*kwargs['pop_size']), stat
+
+def get_utility_from_simulation_dict_input(input_dict, test_percentage):
+    return get_utility_from_simulation(pop_size=input_dict['pop_size'],
+                                       init_infected=input_dict['init_infected'],
+                                       r0=input_dict['r0'],
+                                       expected_recovery_time=input_dict['expected_recovery_time'],
+                                       expected_incubation_time=input_dict['expected_incubation_time'],
+                                       expected_time_to_hospital=input_dict['expected_time_to_hospital'],
+                                       test_percentage=test_percentage)
 
 
 def get_utility_from_simulation(pop_size=1000,
@@ -104,14 +113,25 @@ def get_utility_from_simulation(pop_size=1000,
                                 expected_incubation_time=5,
                                 expected_time_to_hospital=10,
                                 test_percentage=.1):
-    max_hospital = get_max_hospital(pop_size=pop_size,
+
+    max_hospital = get_max_hospital(dict_input_for_max_hospital(pop_size=pop_size,
                                     init_infected=init_infected,
                                     r0=r0,
                                     expected_recovery_time=expected_recovery_time,
                                     expected_incubation_time=expected_incubation_time,
                                     expected_time_to_hospital=expected_time_to_hospital,
-                                    test_percentage=test_percentage)
+                                    test_percentage=test_percentage))[0]
     return calc_utility(max_hospital, pop_size*test_percentage/100)
+
+def dict_input_for_max_hospital(pop_size, init_infected, r0, expected_recovery_time,
+                                expected_incubation_time, expected_time_to_hospital,
+                                test_percentage):
+    return {'pop_size': pop_size, 'init_infected': init_infected, 'r0': r0,
+            'expected_recovery_time': expected_recovery_time,
+            'expected_incubation_time': expected_incubation_time,
+            'expected_time_to_hospital': expected_time_to_hospital,
+            'test_percentage': test_percentage}
+
 
 def calc_utility(hospital, num_tests):
     number_of_tests = np.array(num_tests)

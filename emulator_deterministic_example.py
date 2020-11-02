@@ -136,6 +136,12 @@ def generate_gp_data_action_certainty_search(params, num_samples):
         em.run_model_add_results_to_data_frame(best_params)
         em.save_current_data_frame_to_csv()
 
+def get_true_optimal_action(parameter_dict, test_options=(0, 10, 20)):
+
+    utility_options = [epi_model_deterministic.get_utility_from_simulation_dict_input(parameter_dict,
+                                                                                      test_percentage)
+                       for test_percentage in test_options]
+    return np.where(utility_options == min(utility_options))[0][0]
 
 if __name__ == "__main__":
     parameter_range = {'pop_size': {'value': 1000, 'type': 'point'},
@@ -195,7 +201,7 @@ if __name__ == "__main__":
 
     generate_random_data = False
     generate_uncertain_data = False
-    generate_action_certainty_data = True
+    generate_action_certainty_data = False
     generate_test_data = False
 
     if generate_random_data:
@@ -211,3 +217,10 @@ if __name__ == "__main__":
     data_test = create_emulator_object(parameter_range, get_gp_save_names('test_data'))
     em_test.optimise_gp_using_df_data(50)
     dict(data_test.data.iloc[1]) #NEED A WAY TO TEST THIS PROPERLY
+    test_data = em_test.dict_to_data_for_predict(dict(data_test.data.iloc[1]))
+    em_test.predict_gp(np.array(test_data))
+
+    htrue = data_test.data.iloc[1]['test_percentage']
+    data_test.data.iloc[1]['max_hospital']
+    epi_model_deterministic.get_utility_from_simulation_dict_input(data_test.data.iloc[1], 0)
+    print(get_true_optimal_action(data_test.data.iloc[1]))
