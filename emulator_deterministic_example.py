@@ -143,6 +143,37 @@ def get_true_optimal_action(parameter_dict, test_options=(0, 10, 20)):
                        for test_percentage in test_options]
     return np.where(utility_options == min(utility_options))[0][0]
 
+
+def prob_optimal_choice(em_object_list, test_param_set):
+    true_optimal = get_true_optimal_action(test_param_set)
+    pr_correct = []
+    for test_emulator in em_object_list:
+        pr_opts = estimate_probability_of_best_action(test_emulator, test_param_set)
+        pr_correct.append(pr_opts[true_optimal])
+    return pr_correct
+
+def test_emulator_accuracy(em_object_list, test_data_object, num_test_points_max):
+    data = test_data_object.data
+    accuracy_list = []
+    for i in range(len(data)):
+        accuracy_list.append(prob_optimal_choice(em_object_list, data.iloc[i]))
+        if i == num_test_points_max:
+            break
+    return np.mean(accuracy_list, axis=0)
+
+def test_all_emulator_accuracy(param_range, save_name_keys, test_data_key,
+                               num_training_data, num_test_data):
+    em_object_list = []
+    for em_name in save_name_keys:
+        current_em = create_emulator_object(param_range, get_gp_save_names(em_name))
+        current_em.data = current_em.data[:num_training_data]
+        current_em.optimise_gp_using_df_data(num_rows=num_training_data)
+        em_object_list.append(current_em)
+    data_object = create_emulator_object(parameter_range, get_gp_save_names(test_data_key))
+    return test_emulator_accuracy(em_object_list=em_object_list, test_data_object=data_object,
+                           num_test_points_max=num_test_data)
+
+
 if __name__ == "__main__":
     parameter_range = {'pop_size': {'value': 1000, 'type': 'point'},
                           'init_infected': {'value': 25, 'type': 'point'},
@@ -213,7 +244,16 @@ if __name__ == "__main__":
     if generate_test_data:
         generate_gp_test_data(params=parameter_range, num_samples=10000)
 
-    em_test = create_emulator_object(parameter_range, get_gp_save_names('gp_uncertainty'))
+    em_test_rand = create_emulator_object(parameter_range, get_gp_save_names('random'))
+    em_test_rand.data = em_test_rand.data[:100]
+    em_test_rand.optimise_gp_using_df_data(num_rows=100)
+    em_test_uncertain = create_emulator_object(parameter_range, get_gp_save_names('gp_uncertainty'))
+    em_test_uncertain.data = em_test_rand.data[:100]
+    em_test_uncertain.optimise_gp_using_df_data(num_rows=100)
+    em_test_action = create_emulator_object(parameter_range, get_gp_save_names('gp_action_certainty'))
+    em_test_action.data = em_test_rand.data[:100]
+    em_test_action.optimise_gp_using_df_data(num_rows=100)
+
     data_test = create_emulator_object(parameter_range, get_gp_save_names('test_data'))
     em_test.optimise_gp_using_df_data(50)
     dict(data_test.data.iloc[1]) #NEED A WAY TO TEST THIS PROPERLY
@@ -223,4 +263,15 @@ if __name__ == "__main__":
     htrue = data_test.data.iloc[1]['test_percentage']
     data_test.data.iloc[1]['max_hospital']
     epi_model_deterministic.get_utility_from_simulation_dict_input(data_test.data.iloc[1], 0)
+
     print(get_true_optimal_action(data_test.data.iloc[1]))
+    estimate_probability_of_best_action(em_test, data_test.data.iloc[1])
+
+    estimate_probability_of_best_action(em_test_rand, data_test.data.iloc[1])
+
+    accuracy = test_all_emulator_accuracy(parameter_range,
+                               ['random', 'gp_uncertainty', 'gp_action_certainty'],
+                               'test_data',
+                               100,
+                               10)
+    print(accuracy)

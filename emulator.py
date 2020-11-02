@@ -193,7 +193,7 @@ class DynamicEmulator:
     def set_gp_parameters(self, dimension=1):
         # ker = gpflow.kernels.Matern52()
         ker = gpflow.kernels.Matern32()
-        ker = gpflow.kernels.SquaredExponential() + gpflow.kernels.Matern32() + gpflow.kernels.White()
+        # ker = gpflow.kernels.SquaredExponential() + gpflow.kernels.Matern32() + gpflow.kernels.White()
         # ker = gpflow.kernels.Stationary.
         # ker.variance.prior = tfp.distributions.Gamma(to_default_float(2), to_default_float(3))
         meanf = None#gpflow.mean_functions.Constant()
