@@ -323,10 +323,16 @@ class DynamicEmulator:
             param_set_df['stdev_predict'] = std_prediction
             param_set_df['val_predict'] = value_prediction
             best_set = param_set_df[param_set_df['stdev_predict'] == max(param_set_df['stdev_predict'])]
+            if len(best_set) > 1:
+                best_set = best_set.iloc[0]
+
             final_set_df = final_set_df.append(best_set)
 
             best_set_x_values = np.array(best_set[training_variables_list])
-            best_set_y_values = np.array(best_set['val_predict'][0][0]).reshape(-1, 1)
+            try:
+                best_set_y_values = np.array(best_set['val_predict'][0][0]).reshape(-1, 1)
+            except:
+                best_set_y_values = np.array(best_set['val_predict'][0]).reshape(-1, 1)
             self.add_data_to_gp(best_set_x_values, best_set_y_values)
         self.set_gp_data_to_df_data()
         return final_set_df

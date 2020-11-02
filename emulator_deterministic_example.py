@@ -228,11 +228,11 @@ if __name__ == "__main__":
 
 
     # print(determine_best_param_set_by_action_certainty())
-    data_samples = 100
+    data_samples = 1000
 
     generate_random_data = False
-    generate_uncertain_data = False
-    generate_action_certainty_data = False
+    generate_uncertain_data = True
+    generate_action_certainty_data = True
     generate_test_data = False
 
     if generate_random_data:
@@ -244,34 +244,23 @@ if __name__ == "__main__":
     if generate_test_data:
         generate_gp_test_data(params=parameter_range, num_samples=10000)
 
-    em_test_rand = create_emulator_object(parameter_range, get_gp_save_names('random'))
-    em_test_rand.data = em_test_rand.data[:100]
-    em_test_rand.optimise_gp_using_df_data(num_rows=100)
-    em_test_uncertain = create_emulator_object(parameter_range, get_gp_save_names('gp_uncertainty'))
-    em_test_uncertain.data = em_test_rand.data[:100]
-    em_test_uncertain.optimise_gp_using_df_data(num_rows=100)
-    em_test_action = create_emulator_object(parameter_range, get_gp_save_names('gp_action_certainty'))
-    em_test_action.data = em_test_rand.data[:100]
-    em_test_action.optimise_gp_using_df_data(num_rows=100)
 
-    data_test = create_emulator_object(parameter_range, get_gp_save_names('test_data'))
-    em_test.optimise_gp_using_df_data(50)
-    dict(data_test.data.iloc[1]) #NEED A WAY TO TEST THIS PROPERLY
-    test_data = em_test.dict_to_data_for_predict(dict(data_test.data.iloc[1]))
-    em_test.predict_gp(np.array(test_data))
+    data_test_size_list = list(range(10,500,10))
+    accuracy_list = []
+    for test_size in data_test_size_list:
+        print(f'Running test data size {test_size}')
+        accuracy = test_all_emulator_accuracy(parameter_range,
+                                   ['random', 'gp_uncertainty', 'gp_action_certainty'],
+                                   'test_data',
+                                   num_training_data=test_size,
+                                   num_test_data=500)
+        accuracy_list.append(accuracy)
+    accuracy_array = np.array(accuracy_list)
 
-    htrue = data_test.data.iloc[1]['test_percentage']
-    data_test.data.iloc[1]['max_hospital']
-    epi_model_deterministic.get_utility_from_simulation_dict_input(data_test.data.iloc[1], 0)
-
-    print(get_true_optimal_action(data_test.data.iloc[1]))
-    estimate_probability_of_best_action(em_test, data_test.data.iloc[1])
-
-    estimate_probability_of_best_action(em_test_rand, data_test.data.iloc[1])
-
-    accuracy = test_all_emulator_accuracy(parameter_range,
-                               ['random', 'gp_uncertainty', 'gp_action_certainty'],
-                               'test_data',
-                               100,
-                               10)
-    print(accuracy)
+    plt.plot(data_test_size_list, accuracy_array)
+    plt.legend(['Random', 'Uncertain', 'Action certainty'])
+    plt.xlabel('Training data')
+    plt.ylabel('Test accuracy')
+    plt.title('500 test data sets')
+    plt.savefig('figures/test_set_accuracy.png')
+    plt.show()
