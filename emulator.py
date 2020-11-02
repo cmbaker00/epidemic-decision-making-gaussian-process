@@ -42,9 +42,7 @@ class DynamicEmulator:
                 os.remove(self.data_file())
             except FileNotFoundError:
                 pass
-            else:
-                raise
-            self.load_previous_data()
+            self.data = self.load_previous_data()
             print('Deleted')
         else:
             print('Cancelled')
@@ -375,14 +373,14 @@ class DynamicEmulator:
                     print('Running 10 initial simulations')
                     num_random = 10
                     self.run_random_simulation_save_data(num_simulations=num_random)
-                    self.load_previous_data()
+                    self.data = self.load_previous_data()
                     num_model_runs_current -= num_random
                     if number_model_runs <= 0:
                         print('No subsequent simulations run after the initial 2')
                         return
                 if num_candidates is None:
                     num_candidates = 100 if num_model_runs_current < 20 else num_model_runs_current*5
-                self.load_previous_data()
+                self.data = self.load_previous_data()
                 self.optimise_gp_using_df_data()
                 self.find_run_and_save_high_uncertainty_parameter_region_results(
                     num_sets=num_model_runs_current, num_candidates=num_candidates)
