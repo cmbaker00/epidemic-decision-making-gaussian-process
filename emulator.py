@@ -201,6 +201,14 @@ class DynamicEmulator:
         self.kernal = ker
         self.meanf = meanf
 
+    def kernal_options(self):
+        ker_list = [gpflow.kernels.Matern52(),
+                    gpflow.kernels.SquaredExponential(),
+                    gpflow.kernels.SquaredExponential() + gpflow.kernels.Matern32(),
+                    gpflow.kernels.SquaredExponential() + gpflow.kernels.Matern32() + gpflow.kernels.White()
+                    ]
+        return ker_list
+
     def add_data_to_gp(self, x, y):
         current_x, current_y = self.gp.data
         new_x = tf.concat([current_x, tf.convert_to_tensor(x)], axis=0)
@@ -219,8 +227,19 @@ class DynamicEmulator:
     def change_data_optimise_gp(self, x, y, optimise_gp=True):
         m = self.change_gp_data_to(x, y)
         if optimise_gp:
-            opt = gpflow.optimizers.Scipy()
-            opt_logs = opt.minimize(m.training_loss, m.trainable_variables, options=dict(maxiter=100))
+            gp_optim_flag = False
+            num_checked = 0
+            while gp_optim_flag is False:
+                try:
+                    opt = gpflow.optimizers.Scipy()
+                    opt_logs = opt.minimize(m.training_loss, m.trainable_variables, options=dict(maxiter=100))
+                    gp_optim_flag = True
+                except tf.python.framework.errors_impl.InvalidArgumentError:
+                    if num_checked >= len(self.kernal_options()):
+                        raise tf.python.framework.errors_impl.InvalidArgumentError
+                    self.kernal = self.kernal_options()[num_checked]
+                    m = self.change_gp_data_to(x, y)
+                    num_checked += 1
         self.gp = m
 
     def optimise_gp_using_df_data(self, num_rows=None):

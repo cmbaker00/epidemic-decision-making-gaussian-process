@@ -231,8 +231,8 @@ if __name__ == "__main__":
     data_samples = 1000
 
     generate_random_data = False
-    generate_uncertain_data = True
-    generate_action_certainty_data = True
+    generate_uncertain_data = False
+    generate_action_certainty_data = False
     generate_test_data = False
 
     if generate_random_data:
@@ -245,15 +245,18 @@ if __name__ == "__main__":
         generate_gp_test_data(params=parameter_range, num_samples=10000)
 
 
-    data_test_size_list = list(range(10,500,10))
+    data_test_size_list = list(range(15,300,5))
     accuracy_list = []
     for test_size in data_test_size_list:
         print(f'Running test data size {test_size}')
-        accuracy = test_all_emulator_accuracy(parameter_range,
-                                   ['random', 'gp_uncertainty', 'gp_action_certainty'],
-                                   'test_data',
-                                   num_training_data=test_size,
-                                   num_test_data=500)
+        try:
+            accuracy = test_all_emulator_accuracy(parameter_range,
+                                       ['random', 'gp_uncertainty', 'gp_action_certainty'],
+                                       'test_data',
+                                       num_training_data=test_size,
+                                       num_test_data=2000)
+        except:
+            accuracy = np.array([np.nan]*3)
         accuracy_list.append(accuracy)
     accuracy_array = np.array(accuracy_list)
 
@@ -263,4 +266,22 @@ if __name__ == "__main__":
     plt.ylabel('Test accuracy')
     plt.title('500 test data sets')
     plt.savefig('figures/test_set_accuracy.png')
+    plt.show()
+
+    new_data_num_list = []
+    new_acc_list = []
+    for num_data, acc in zip(data_test_size_list, accuracy_list):
+        if any(np.isnan(acc) == True):
+            pass
+        else:
+            new_data_num_list.append(num_data)
+            new_acc_list.append(acc)
+    new_acc_array = np.array(new_acc_list)
+
+    plt.plot(new_data_num_list, new_acc_array)
+    plt.legend(['Random', 'Uncertain', 'Action certainty'])
+    plt.xlabel('Training data')
+    plt.ylabel('Test accuracy')
+    plt.title('500 test data sets')
+    plt.savefig('figures/test_set_accuracy_removed_nan.png')
     plt.show()
