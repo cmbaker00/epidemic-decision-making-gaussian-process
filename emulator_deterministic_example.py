@@ -115,15 +115,24 @@ def generate_gp_data_random_search(params, num_samples):
 
 
 def generate_gp_data_uncertainty_search(params, num_samples):
-    em=create_emulator_object(params, gp_save_name=get_gp_save_names('gp_uncertainty'))
+    em = create_emulator_object(params, gp_save_name=get_gp_save_names('gp_uncertainty'))
     em.delete_existing_data(force_delete=True)
-    em.explore_parameter_space_save_to_csv(number_model_runs=num_samples, mode='uncertainty')
+    # add the random data to initialise
+    em_rand = create_emulator_object(params, gp_save_name=get_gp_save_names('random'))
+    em.data = em_rand.data[:10]
+    em.save_current_data_frame_to_csv()
+
+    em.explore_parameter_space_save_to_csv(number_model_runs=num_samples-10, mode='uncertainty')
 
 
 def generate_gp_data_action_certainty_search(params, num_samples):
     em = create_emulator_object(params, gp_save_name=get_gp_save_names('gp_action_certainty'))
     em.delete_existing_data(force_delete=True)
-    em.run_random_simulation_save_data(10)
+    # add the random data to initialise
+    em_rand = create_emulator_object(params, gp_save_name=get_gp_save_names('random'))
+    em.data = em_rand.data[:10]
+    em.save_current_data_frame_to_csv()
+
     samples_to_run = num_samples - 10
     if samples_to_run <= 0:
         raise ValueError(f'Number of samples must be greater than 10.')
@@ -138,11 +147,24 @@ def generate_gp_data_action_certainty_search(params, num_samples):
 
 def get_true_optimal_action(parameter_dict, test_options=(0, 10, 20)):
 
+    utility_options = get_true_utility_of_actions(parameter_dict, test_options)
+    return np.where(utility_options == min(utility_options))[0][0]
+
+def get_true_utility_of_actions(parameter_dict, test_options=(0, 10, 20)):
     utility_options = [epi_model_deterministic.get_utility_from_simulation_dict_input(parameter_dict,
                                                                                       test_percentage)
                        for test_percentage in test_options]
-    return np.where(utility_options == min(utility_options))[0][0]
+    return utility_options
 
+def get_regret_percentage(em_object_list, test_param_set):
+    true_utilities = get_true_utility_of_actions(test_param_set)
+    regret_list = []
+    for test_emulator in em_object_list:
+        pr_best_action = list(estimate_probability_of_best_action(test_emulator, test_param_set))
+        action_choice = pr_best_action.index(max(pr_best_action))
+        regret_ratio = true_utilities[action_choice] / min(true_utilities)
+        regret_list.append(regret_ratio)
+    return regret_list
 
 def prob_optimal_choice(em_object_list, test_param_set):
     true_optimal = get_true_optimal_action(test_param_set)
@@ -161,6 +183,17 @@ def test_emulator_accuracy(em_object_list, test_data_object, num_test_points_max
             break
     return np.mean(accuracy_list, axis=0)
 
+
+def test_emulator_regret(em_object_list, test_data_object, num_test_points_max):
+    data = test_data_object.data
+    regret_list = []
+    for i in range(len(data)):
+        regret_list.append(get_regret_percentage(em_object_list, data.iloc[i]))
+        if i == num_test_points_max:
+            break
+    return np.mean(regret_list, axis=0)
+
+
 def test_all_emulator_accuracy(param_range, save_name_keys, test_data_key,
                                num_training_data, num_test_data):
     em_object_list = []
@@ -173,6 +206,18 @@ def test_all_emulator_accuracy(param_range, save_name_keys, test_data_key,
     return test_emulator_accuracy(em_object_list=em_object_list, test_data_object=data_object,
                            num_test_points_max=num_test_data)
 
+
+def test_all_emulator_regret(param_range, save_name_keys, test_data_key,
+                             num_training_data, num_test_data):
+    em_object_list =[]
+    for em_name in save_name_keys:
+        current_em = create_emulator_object(param_range, get_gp_save_names(em_name))
+        current_em.data = current_em.data[:num_training_data]
+        current_em.optimise_gp_using_df_data(num_rows=num_training_data)
+        em_object_list.append(current_em)
+    data_object = create_emulator_object(parameter_range, get_gp_save_names(test_data_key))
+    return test_emulator_regret(em_object_list=em_object_list, test_data_object=data_object,
+                                num_test_points_max=num_test_data)
 
 if __name__ == "__main__":
     parameter_range = {'pop_size': {'value': 1000, 'type': 'point'},
@@ -228,15 +273,16 @@ if __name__ == "__main__":
 
 
     # print(determine_best_param_set_by_action_certainty())
-    data_samples = 1000
+    data_samples = 500
 
-    generate_random_data = False
-    generate_uncertain_data = False
-    generate_action_certainty_data = False
+    generate_random_data = True
+    generate_uncertain_data = True
+    generate_action_certainty_data = True
     generate_test_data = False
 
     run_initial_testing = False
     run_testing_by_emulator = True
+    run_regret_test_by_emulator = True
 
     if generate_random_data:
         generate_gp_data_random_search(params=parameter_range, num_samples=data_samples)
@@ -305,7 +351,7 @@ if __name__ == "__main__":
                                                           [gp_name],
                                                           'test_data',
                                                           num_training_data=test_size,
-                                                          num_test_data=50)
+                                                          num_test_data=100)
                 except:
                     accuracy = np.array([0])
                 if len(gp_accuracy_list) == 0:
@@ -331,3 +377,53 @@ if __name__ == "__main__":
         plt.savefig('figures/test_set_accuracy_removed_all_vals.png')
 
         plt.show()
+
+    if run_regret_test_by_emulator:
+
+        max_data = 300
+        amount_of_training_data_to_test = tuple(range(15,max_data))
+        gp_name_list = ['random', 'gp_uncertainty', 'gp_action_certainty']
+        gp_regret_list_list = []
+        gp_data_list_list = []
+        for gp_name in gp_name_list:
+            gp_training_data_list = []
+            gp_regret_list = []
+            for test_size in amount_of_training_data_to_test:
+                print(f'{gp_name}, {test_size} data - regret')
+                try:
+                    regret = test_all_emulator_regret(parameter_range,
+                                                          [gp_name],
+                                                          'test_data',
+                                                          num_training_data=test_size,
+                                                          num_test_data=100)
+                except:
+                    regret = np.array([np.inf])
+                if len(gp_regret_list) == 0:
+                    gp_regret_list.append(regret)
+                    gp_training_data_list.append(test_size)
+                else:
+                    previous_best_regret = gp_regret_list[-1][0]
+                    if regret[0] <= previous_best_regret:
+                        gp_regret_list.append(regret)
+                        gp_training_data_list.append(test_size)
+            gp_regret_list.append(gp_regret_list[-1])
+            gp_training_data_list.append(max_data)
+            gp_regret_list_list.append(gp_regret_list)
+            gp_data_list_list.append(gp_training_data_list)
+
+        for gp_name, regret_list, data_list in zip(gp_name_list,
+                                                gp_regret_list_list,
+                                                gp_data_list_list):
+            plt.plot(data_list, regret_list)
+        plt.xlabel('Training data')
+        plt.ylabel('Regret')
+        plt.legend(gp_name_list)
+        plt.savefig('figures/test_set_regret_removed_all_vals.png')
+
+        plt.show()
+
+        # t = test_all_emulator_regret(parameter_range,
+        #                            ['random'],
+        #                            'test_data',
+        #                            num_training_data=40,
+        #                            num_test_data=50)
