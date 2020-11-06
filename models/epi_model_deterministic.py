@@ -163,7 +163,7 @@ if __name__ == "__main__":
         expected_recovery_time = 5
         expected_incubation_time = 5
         expected_time_to_hospital = 15
-        test_percentage = 100
+        test_percentage = 10
         epi_model = DiseaseDynamicsDeterministic(pop_size=pop_size,
                                                  init_infected=init_infected,
                                                  r0=r0,
@@ -171,7 +171,7 @@ if __name__ == "__main__":
                                                  expected_incubation_time=expected_incubation_time,
                                                  expected_time_to_hospital=expected_time_to_hospital,
                                                  test_percentage=test_percentage)
-        y = epi_model.run_ode([0, 500])
+        y = epi_model.run_ode([0, 365])
         plt.plot(y.t, y.y[1:-1].transpose()*pop_size)
         plt.legend(['Exposed', 'Exposed quarantine',
                     'Infected', 'Infected quarantine',

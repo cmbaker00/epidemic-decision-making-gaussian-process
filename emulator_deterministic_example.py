@@ -235,6 +235,9 @@ if __name__ == "__main__":
     generate_action_certainty_data = False
     generate_test_data = False
 
+    run_initial_testing = False
+    run_testing_by_emulator = True
+
     if generate_random_data:
         generate_gp_data_random_search(params=parameter_range, num_samples=data_samples)
     if generate_uncertain_data:
@@ -244,44 +247,87 @@ if __name__ == "__main__":
     if generate_test_data:
         generate_gp_test_data(params=parameter_range, num_samples=10000)
 
+    if run_initial_testing:
+        data_test_size_list = list(range(15,300,5))
+        accuracy_list = []
+        for test_size in data_test_size_list:
+            print(f'Running test data size {test_size}')
+            try:
+                accuracy = test_all_emulator_accuracy(parameter_range,
+                                           ['random', 'gp_uncertainty', 'gp_action_certainty'],
+                                           'test_data',
+                                           num_training_data=test_size,
+                                           num_test_data=2000)
+            except:
+                accuracy = np.array([np.nan]*3)
+            accuracy_list.append(accuracy)
+        accuracy_array = np.array(accuracy_list)
 
-    data_test_size_list = list(range(15,300,5))
-    accuracy_list = []
-    for test_size in data_test_size_list:
-        print(f'Running test data size {test_size}')
-        try:
-            accuracy = test_all_emulator_accuracy(parameter_range,
-                                       ['random', 'gp_uncertainty', 'gp_action_certainty'],
-                                       'test_data',
-                                       num_training_data=test_size,
-                                       num_test_data=2000)
-        except:
-            accuracy = np.array([np.nan]*3)
-        accuracy_list.append(accuracy)
-    accuracy_array = np.array(accuracy_list)
+        plt.plot(data_test_size_list, accuracy_array)
+        plt.legend(['Random', 'Uncertain', 'Action certainty'])
+        plt.xlabel('Training data')
+        plt.ylabel('Test accuracy')
+        plt.title('500 test data sets')
+        plt.savefig('figures/test_set_accuracy.png')
+        plt.show()
 
-    plt.plot(data_test_size_list, accuracy_array)
-    plt.legend(['Random', 'Uncertain', 'Action certainty'])
-    plt.xlabel('Training data')
-    plt.ylabel('Test accuracy')
-    plt.title('500 test data sets')
-    plt.savefig('figures/test_set_accuracy.png')
-    plt.show()
+        new_data_num_list = []
+        new_acc_list = []
+        for num_data, acc in zip(data_test_size_list, accuracy_list):
+            if any(np.isnan(acc) == True):
+                pass
+            else:
+                new_data_num_list.append(num_data)
+                new_acc_list.append(acc)
+        new_acc_array = np.array(new_acc_list)
 
-    new_data_num_list = []
-    new_acc_list = []
-    for num_data, acc in zip(data_test_size_list, accuracy_list):
-        if any(np.isnan(acc) == True):
-            pass
-        else:
-            new_data_num_list.append(num_data)
-            new_acc_list.append(acc)
-    new_acc_array = np.array(new_acc_list)
+        plt.plot(new_data_num_list, new_acc_array)
+        plt.legend(['Random', 'Uncertain', 'Action certainty'])
+        plt.xlabel('Training data')
+        plt.ylabel('Test accuracy')
+        plt.title('500 test data sets')
+        plt.savefig('figures/test_set_accuracy_removed_nan.png')
+        plt.show()
 
-    plt.plot(new_data_num_list, new_acc_array)
-    plt.legend(['Random', 'Uncertain', 'Action certainty'])
-    plt.xlabel('Training data')
-    plt.ylabel('Test accuracy')
-    plt.title('500 test data sets')
-    plt.savefig('figures/test_set_accuracy_removed_nan.png')
-    plt.show()
+    if run_testing_by_emulator:
+        max_data = 300
+        amount_of_training_data_to_test = tuple(range(15,max_data))
+        gp_name_list = ['random', 'gp_uncertainty', 'gp_action_certainty']
+        gp_accuracy_list_list = []
+        gp_data_list_list = []
+        for gp_name in gp_name_list:
+            gp_training_data_list = []
+            gp_accuracy_list = []
+            for test_size in amount_of_training_data_to_test:
+                print(f'{gp_name}, {test_size} data')
+                try:
+                    accuracy = test_all_emulator_accuracy(parameter_range,
+                                                          [gp_name],
+                                                          'test_data',
+                                                          num_training_data=test_size,
+                                                          num_test_data=50)
+                except:
+                    accuracy = np.array([0])
+                if len(gp_accuracy_list) == 0:
+                    gp_accuracy_list.append(accuracy)
+                    gp_training_data_list.append(test_size)
+                else:
+                    previous_best_accuracy = gp_accuracy_list[-1][0]
+                    if accuracy[0] >= previous_best_accuracy:
+                        gp_accuracy_list.append(accuracy)
+                        gp_training_data_list.append(test_size)
+            gp_accuracy_list.append(gp_accuracy_list[-1])
+            gp_training_data_list.append(max_data)
+            gp_accuracy_list_list.append(gp_accuracy_list)
+            gp_data_list_list.append(gp_training_data_list)
+
+        for gp_name, acc_list, data_list in zip(gp_name_list,
+                                                gp_accuracy_list_list,
+                                                gp_data_list_list):
+            plt.plot(data_list, acc_list)
+        plt.xlabel('Training data')
+        plt.ylabel('Test accuracy')
+        plt.legend(gp_name_list)
+        plt.savefig('figures/test_set_accuracy_removed_all_vals.png')
+
+        plt.show()
