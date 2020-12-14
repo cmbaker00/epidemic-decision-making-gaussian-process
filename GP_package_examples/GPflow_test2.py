@@ -9,7 +9,7 @@ from gpflow.utilities import print_summary
 # X = np.array([0,1,2,3,4,5])
 # Y = np.array([5,4,3,0,0,-2])
 # data = np.genfromtxt("data/epi_SIR_test_random_search_example.csv", delimiter=",")
-data = pd.read_csv("data/epi_SIR_test_random_search_example.csv")
+data = pd.read_csv("../data/epi_SIR_test_random_search_example.csv")
 
 rows = 10
 X = np.array(data['beta']).reshape(-1,1)[0:rows]*50
