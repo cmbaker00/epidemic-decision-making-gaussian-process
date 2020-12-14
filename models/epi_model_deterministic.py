@@ -159,7 +159,7 @@ if __name__ == "__main__":
     if make_simple_example_plot:
         pop_size = 1000
         init_infected = 1
-        r0 = 2
+        r0 = 3
         expected_recovery_time = 5
         expected_incubation_time = 5
         expected_time_to_hospital = 15
@@ -176,4 +176,8 @@ if __name__ == "__main__":
         plt.legend(['Exposed', 'Exposed quarantine',
                     'Infected', 'Infected quarantine',
                     'Infected hospital'])
+        plt.xlabel('Days')
+        plt.ylabel('Number of people')
+        plt.savefig('model_figures/SEIR_example_plot.png')
         plt.show()
+        plt.close()

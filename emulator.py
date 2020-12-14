@@ -211,6 +211,8 @@ class DynamicEmulator:
 
     def add_data_to_gp(self, x, y):
         current_x, current_y = self.gp.data
+        if len(x.shape) == 1:
+            x = np.array([list(x)])
         new_x = tf.concat([current_x, tf.convert_to_tensor(x)], axis=0)
         new_y = tf.concat([current_y, tf.convert_to_tensor(y)], axis=0)
         self.gp.data = new_x, new_y

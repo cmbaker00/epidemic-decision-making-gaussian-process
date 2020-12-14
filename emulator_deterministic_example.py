@@ -119,7 +119,7 @@ def generate_gp_data_uncertainty_search(params, num_samples):
     em.delete_existing_data(force_delete=True)
     # add the random data to initialise
     em_rand = create_emulator_object(params, gp_save_name=get_gp_save_names('random'))
-    em.data = em_rand.data[:10]
+    em.data = em_rand.data[:50]
     em.save_current_data_frame_to_csv()
 
     em.explore_parameter_space_save_to_csv(number_model_runs=num_samples-10, mode='uncertainty')
@@ -130,7 +130,7 @@ def generate_gp_data_action_certainty_search(params, num_samples):
     em.delete_existing_data(force_delete=True)
     # add the random data to initialise
     em_rand = create_emulator_object(params, gp_save_name=get_gp_save_names('random'))
-    em.data = em_rand.data[:10]
+    em.data = em_rand.data[:50]
     em.save_current_data_frame_to_csv()
 
     samples_to_run = num_samples - 10
@@ -275,7 +275,7 @@ if __name__ == "__main__":
     # print(determine_best_param_set_by_action_certainty())
     data_samples = 500
 
-    generate_random_data = True
+    generate_random_data = False
     generate_uncertain_data = True
     generate_action_certainty_data = True
     generate_test_data = False
